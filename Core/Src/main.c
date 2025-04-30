@@ -51,37 +51,46 @@
 /*!
  * @brief Packet parameters for LoRa packets
  */
-#ifndef LORA_PREAMBLE_LENGTH
-#define LORA_PREAMBLE_LENGTH 8
-#endif
-#ifndef LORA_PKT_LEN_MODE
-#define LORA_PKT_LEN_MODE SX126X_LORA_PKT_EXPLICIT
-#endif
-#ifndef LORA_IQ
-#define LORA_IQ false
-#endif
-#ifndef LORA_CRC
-#define LORA_CRC false
-#endif
-#define PAYLOAD_LENGTH 17
+// #ifndef LORA_PREAMBLE_LENGTH
+// #define LORA_PREAMBLE_LENGTH 8
+// #endif
+// #ifndef LORA_PKT_LEN_MODE
+// #define LORA_PKT_LEN_MODE SX126X_LORA_PKT_EXPLICIT
+// #endif
+// #ifndef LORA_IQ
+// #define LORA_IQ false
+// #endif
+// #ifndef LORA_CRC
+// #define LORA_CRC false
+// #endif
+// #define PAYLOAD_LENGTH 17
 
-#define PACKET_TYPE SX126X_PKT_TYPE_LORA
+// #define PACKET_TYPE SX126X_PKT_TYPE_LORA
+
+
+// /*!
+//  * @brief LoRa sync word
+//  */
+// #ifndef LORA_SYNCWORD_PRIVATE_NTW
+// #define LORA_SYNCWORD_PRIVATE_NTW   0x12 // 0x12 Private Network
+
+// #endif
+// #ifndef LORA_SYNCWORD_PUBLIC_NTW
+// #define LORA_SYNCWORD_PUBLIC_NTW    0x34 // 0x34 Public Network
+
+// #endif
+// #ifndef LORA_SYNCWORD
+// #define LORA_SYNCWORD LORA_SYNCWORD_PRIVATE_NTW
+// #endif
+
 
 
 /*!
- * @brief LoRa sync word
+ * Unique Devices IDs register set ( STM32L4xxx )
  */
-#ifndef LORA_SYNCWORD_PRIVATE_NTW
-#define LORA_SYNCWORD_PRIVATE_NTW   0x12 // 0x12 Private Network
-
-#endif
-#ifndef LORA_SYNCWORD_PUBLIC_NTW
-#define LORA_SYNCWORD_PUBLIC_NTW    0x34 // 0x34 Public Network
-
-#endif
-#ifndef LORA_SYNCWORD
-#define LORA_SYNCWORD LORA_SYNCWORD_PRIVATE_NTW
-#endif
+#define         ID1                                 ( 0x1FFF7590 )
+#define         ID2                                 ( 0x1FFF7594 )
+#define         ID3                                 ( 0x1FFF7594 )
 
 
 
@@ -94,8 +103,6 @@ UART_HandleTypeDef huart2;
 
 sx126x_chip_status_t chip_status;
 
-Hal_context context;
-
 sx126x_pa_cfg_params_t PaCfgParams;
 
 TIM_HandleTypeDef htim2;
@@ -103,11 +110,32 @@ TIM_HandleTypeDef htim2;
 RTC_HandleTypeDef hrtc;
 
 
+/*!
+ * User application data
+ */
+static uint8_t AppDataBuffer[LORAWAN_APP_DATA_BUFFER_MAX_SIZE];
+
+/*!
+ * User application data structure
+ */
+static LmHandlerAppData_t AppData =
+{
+    .Buffer = AppDataBuffer,
+    .BufferSize = 0,
+    .Port = 0,
+};
 
 
+/*!
+ * Timer to handle the application data transmission duty cycle
+ */
+static TimerEvent_t TxTimer;
 
 
-
+uint32_t BoardGetRandomSeed( void )
+{
+    return ( ( *( uint32_t* )ID1 ) ^ ( *( uint32_t* )ID2 ) ^ ( *( uint32_t* )ID3 ) );
+}
 
 
 /* USER CODE BEGIN PV */
@@ -123,11 +151,91 @@ int _read(int file, char *ptr, int len);
 int _write(int file, char *ptr, int len);
 uint8_t compute_lora_ldro( const sx126x_lora_sf_t sf, const sx126x_lora_bw_t bw );
 void sx126x_received( void*, uint8_t*, uint8_t*, uint8_t );
-static void MX_RTC_Init(void);
+static HAL_StatusTypeDef MX_RTC_Init(void);
 static void MX_TIM2_Init(void);
 
 
 
+static void OnMacProcessNotify( void );
+static void OnNvmDataChange( LmHandlerNvmContextStates_t state, uint16_t size );
+static void OnNetworkParametersChange( CommissioningParams_t* params );
+static void OnMacMcpsRequest( LoRaMacStatus_t status, McpsReq_t *mcpsReq, TimerTime_t nextTxIn );
+static void OnMacMlmeRequest( LoRaMacStatus_t status, MlmeReq_t *mlmeReq, TimerTime_t nextTxIn );
+static void OnJoinRequest( LmHandlerJoinParams_t* params );
+static void OnTxData( LmHandlerTxParams_t* params );
+static void OnRxData( LmHandlerAppData_t* appData, LmHandlerRxParams_t* params );
+static void OnClassChange( DeviceClass_t deviceClass );
+static void OnBeaconStatusChange( LoRaMacHandlerBeaconParams_t* params );
+
+#if( LMH_SYS_TIME_UPDATE_NEW_API == 1 )
+static void OnSysTimeUpdate( bool isSynchronized, int32_t timeCorrection );
+#else
+static void OnSysTimeUpdate( void );
+#endif
+static void PrepareTxFrame( void );
+static void StartTxProcess( LmHandlerTxEvents_t txEvent );
+static void UplinkProcess( void );
+
+static void OnTxPeriodicityChanged( uint32_t periodicity );
+static void OnTxFrameCtrlChanged( LmHandlerMsgTypes_t isTxConfirmed );
+
+/*!
+ * Function executed on TxTimer event
+ */
+static void OnTxTimerEvent( void* context );
+
+static LmHandlerCallbacks_t LmHandlerCallbacks =
+{
+    .GetBatteryLevel = NULL,
+    .GetTemperature = NULL,
+    .GetRandomSeed = BoardGetRandomSeed,
+    .OnMacProcess = OnMacProcessNotify,
+    .OnNvmDataChange = OnNvmDataChange,
+    .OnNetworkParametersChange = OnNetworkParametersChange,
+    .OnMacMcpsRequest = OnMacMcpsRequest,
+    .OnMacMlmeRequest = OnMacMlmeRequest,
+    .OnJoinRequest = OnJoinRequest,
+    .OnTxData = OnTxData,
+    .OnRxData = OnRxData,
+    .OnClassChange= OnClassChange,
+    .OnBeaconStatusChange = OnBeaconStatusChange,
+    .OnSysTimeUpdate = OnSysTimeUpdate,
+};
+
+
+static LmHandlerParams_t LmHandlerParams =
+{
+    .Region = ACTIVE_REGION,
+    .AdrEnable = LORAWAN_ADR_STATE,
+    .IsTxConfirmed = LORAWAN_DEFAULT_CONFIRMED_MSG_STATE,
+    .TxDatarate = LORAWAN_DEFAULT_DATARATE,
+    .PublicNetworkEnable = false,
+    .DutyCycleEnabled = LORAWAN_DUTYCYCLE_ON,
+    .DataBufferMaxSize = LORAWAN_APP_DATA_BUFFER_MAX_SIZE,
+    .DataBuffer = AppDataBuffer,
+    .PingSlotPeriodicity = REGION_COMMON_DEFAULT_PING_SLOT_PERIODICITY,
+};
+
+static LmhpComplianceParams_t LmhpComplianceParams =
+{
+    // .FwVersion.Value = FIRMWARE_VERSION,
+    .OnTxPeriodicityChanged = OnTxPeriodicityChanged,
+    .OnTxFrameCtrlChanged = OnTxFrameCtrlChanged,
+    // .OnPingSlotPeriodicityChanged = OnPingSlotPeriodicityChanged,
+};
+
+
+
+/*!
+ * Indicates if LoRaMacProcess call is pending.
+ * 
+ * \warning If variable is equal to 0 then the MCU can be set in low power mode
+ */
+static volatile uint8_t IsMacProcessPending = 0;
+
+static volatile uint8_t IsTxFramePending = 0;
+
+static volatile uint32_t TxPeriodicity = 0;
 
 /* USER CODE BEGIN PFP */
 
@@ -162,77 +270,69 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
+ 
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_SPI2_Init();
-  MX_USART2_UART_Init();
   MX_RTC_Init();
   MX_TIM2_Init();
+  MX_SPI2_Init();
+  MX_USART2_UART_Init();
+
+  // // Retry RTC initialization
+  // for (int i = 0; i < 3; i++)
+  // {
+  //     if (MX_RTC_Init() == HAL_OK)
+  //     {
+  //         printf("RTC init succeeded on attempt %d!\n", i + 1);
+  //         break;
+  //     }
+  //     printf("RTC init attempt %d failed, retrying...\n", i + 1);
+  //     HAL_Delay(1000);
+  //     __HAL_RCC_BACKUPRESET_FORCE();
+  //     __HAL_RCC_BACKUPRESET_RELEASE();
+  // }
+
   /* USER CODE BEGIN 2 */
 
   RTC_TimeTypeDef sTime ={0};
   RTC_DateTypeDef sDate = {0};
 
+  
+  radio_context_t* context = radio_board_get_radio_context_reference();
 
-  context.spi = hspi2;
-  context.nss.GPIO_PORT = GPIOA;
-  context.nss.pin = NSS_PIN;
-  context.busy.GPIO_PORT = GPIOA;
-  context.busy.pin = BUSY_PIN;
+  context->spi = hspi2;
+  context->nss.GPIO_PORT = GPIOA;
+  context->nss.pin = NSS_PIN;
+  context->busy.GPIO_PORT = GPIOA;
+  context->busy.pin = BUSY_PIN;
+  context->reset.pin = RESET_PIN;
+  context->reset.GPIO_PORT = RESET_PIN_PORT;
 
+  // Initialize transmission periodicity variable
+  TxPeriodicity = APP_TX_DUTYCYCLE + randr( -APP_TX_DUTYCYCLE_RND, APP_TX_DUTYCYCLE_RND );
 
+  if ( LmHandlerInit( &LmHandlerCallbacks, &LmHandlerParams ) != LORAMAC_HANDLER_SUCCESS )
+      {
+          printf( "LoRaMac wasn't properly initialized\n" );
+          // Fatal error, endless loop.
+          while ( 1 )
+          {
+          }
+      }
+  // Set system maximum tolerated rx error in milliseconds
+  LmHandlerSetSystemMaxRxError(20);
+  // The LoRa-Alliance Compliance protocol package should always be
+    // initialized and activated.
+  LmHandlerPackageRegister( PACKAGE_ID_COMPLIANCE, &LmhpComplianceParams );
 
-  /*Setting Pa cfg Params for +14dBm */
-  PaCfgParams.pa_duty_cycle = 0x02;
-  PaCfgParams.hp_max = 0x02;
-  PaCfgParams.device_sel = 0x00;
-  PaCfgParams.pa_lut = 0x01;
+  LmHandlerJoin( );
 
+  StartTxProcess( LORAMAC_HANDLER_TX_ON_TIMER );
 
+  
 
-  /*Setting Lora params*/
-
-  static sx126x_mod_params_lora_t lora_mod_params = {
-    .sf   = SX126X_LORA_SF7,
-    .bw   = SX126X_LORA_BW_125,
-    .cr   = SX126X_LORA_CR_4_5,
-    .ldro = 0,  // Will be initialized during radio init
-  };
-
-
-  /* Setting Lora packet params*/
-
-  const sx126x_pkt_params_lora_t lora_pkt_params = {
-    .preamble_len_in_symb = LORA_PREAMBLE_LENGTH,
-    .header_type          = LORA_PKT_LEN_MODE,
-    .pld_len_in_bytes     = PAYLOAD_LENGTH,
-    .crc_is_on            = LORA_CRC,
-    .invert_iq_is_on      = LORA_IQ,
-  };
-
-
-  /*DATA*/
-  uint8_t buffer_tx[PAYLOAD_LENGTH] = "hello from stm32";
-
-  /*RF switch*/
-  const bool dio2_is_set_as_rf_switch = true;
-
-  /*TXCO parameters*/
-  typedef struct smtc_shield_sx126x_xosc_cfg_s
-  {
-    bool                        tcxo_is_radio_controlled;
-    sx126x_tcxo_ctrl_voltages_t supply_voltage;
-    uint32_t                    startup_time_in_tick;
-  } smtc_shield_sx126x_xosc_cfg_t;
-  smtc_shield_sx126x_xosc_cfg_t tcxo_params ={.startup_time_in_tick =500, .supply_voltage= SX126X_TCXO_CTRL_1_7V };
-
-
-
-  printf("STM32 started\n");
-  char stm32_input_char[10];
 
   /* USER CODE END 2 */
 
@@ -240,134 +340,24 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    // Prompt user for a character
-	          printf("STM32: Enter a character to send to ESP32: ");
-	          fflush(stdout);
+    // Processes the LoRaMac events
+    LmHandlerProcess( );
 
-	          // Read a single character from UART
-	          int chars_read = _read(0, stm32_input_char, 8); // Read 1 char + null terminator
-	          if (chars_read > 0) {
+    // Process application uplinks management
+    UplinkProcess( );
 
-
-              printf("[INFO]Resetting the SX1262\n");
-              ASSERT_SX126X_RC( sx126x_reset(&context ) );
-
-              printf("[INFO] Enabling Retention in SX1262\n");
-              ASSERT_SX126X_RC( sx126x_init_retention_list( &context ) );
-
-              printf("[INFO] Setting RF switch\n");
-              ASSERT_SX126X_RC( sx126x_set_dio2_as_rf_sw_ctrl( &context, dio2_is_set_as_rf_switch ) );
-
-              printf("[INFO] Setting TXCO switch\n");
-              ASSERT_SX126X_RC( sx126x_set_dio3_as_tcxo_ctrl( &context,tcxo_params.supply_voltage,tcxo_params.startup_time_in_tick ) );
-
-              printf("[INFO] Calibrating SX1262\n");
-              ASSERT_SX126X_RC( sx126x_cal( &context, SX126X_CAL_ALL ) );
-              
-              if(SX126X_STATUS_OK == sx126x_get_status(&context, &chip_status ))
-                  {
-                    printf("[INFO]commad status = %d", chip_status.cmd_status);
-                    if(chip_status.chip_mode == SX126X_CHIP_MODE_STBY_RC)
-                    {
-                      printf("[INFO]chip mode = %d\n", chip_status.chip_mode);
-                      printf("[INFO]Chip mode to STDBY_RC\n");
-
-                    }
-                    else
-                    {
-                      printf("[INFO]chip mode is different i.e %d\n", chip_status.chip_mode);
-                      printf("[INFO]setting chip mode to STDBY_RC\n");
-                      if(SX126X_STATUS_OK == sx126x_set_standby(&context, SX126X_STANDBY_CFG_RC))
-                      {
-                      printf("[INFO]set to STDBY_RC\n");
-                      }
-                    }
-                  }
-              printf("[INFO]Setting the packet type to Lora\n");
-              ASSERT_SX126X_RC(sx126x_set_pkt_type( &context, SX126X_PKT_TYPE_LORA));
-              
-              printf("[INFO]Setting the frequency to 869000000 Hz\n");
-              ASSERT_SX126X_RC(sx126x_set_rf_freq(&context, (uint32_t)868000000));
-             
-              printf("[INFO] Setting the Pa configs for +14 dBm\n");
-              ASSERT_SX126X_RC(sx126x_set_pa_cfg(&context, &PaCfgParams ));
-
-              printf("[INFO] Setting Output power to +10 dBm \n");
-              ASSERT_SX126X_RC(sx126x_set_tx_params(&context,10, SX126X_RAMP_40_US ));
-
-              printf("[INFO] Setting Buffer Base Address \n");
-              ASSERT_SX126X_RC(sx126x_set_buffer_base_address(&context, 0,0));
-
-
-              if(chars_read == 1)
-              {
-                   printf("[INFO] Setting data in the buffer\n");
-                   ASSERT_SX126X_RC(sx126x_write_buffer( &context, 0, buffer_tx, PAYLOAD_LENGTH ));
-              }
-             
-
-              printf("[INFO] Setting Lora Modulations Params\n");
-              lora_mod_params.ldro = compute_lora_ldro(SX126X_LORA_SF7,SX126X_LORA_BW_125);
-              ASSERT_SX126X_RC(sx126x_set_lora_mod_params(&context, &lora_mod_params));
-
-              printf("[INFO] Setting Lora Packet params\n");
-              ASSERT_SX126X_RC(sx126x_set_lora_pkt_params( &context, &lora_pkt_params ) );
-
-              printf("[INFO] Setting the IRQ and mapping to DI01\n");
-              ASSERT_SX126X_RC(sx126x_set_dio_irq_params(&context, SX126X_IRQ_ALL,
-                                SX126X_IRQ_TX_DONE | SX126X_IRQ_RX_DONE | SX126X_IRQ_TIMEOUT | SX126X_IRQ_HEADER_ERROR | SX126X_IRQ_CRC_ERROR,
-                                SX126X_IRQ_NONE, SX126X_IRQ_NONE ));
-
-              printf("[INFO] Setting the SYNC WORD\n");
-              ASSERT_SX126X_RC(sx126x_set_lora_sync_word( &context, LORA_SYNCWORD ) );
-
-            if(chars_read == 1)
-            {
-                  printf("[INFO] Starting TX\n");
-                  sx126x_status_t tx_status = sx126x_set_tx(&context, 3000);
-                  if (tx_status != SX126X_STATUS_OK) {
-                        printf("[ERROR] TX failed: %d\n", tx_status);
-                    }
-            }
-            else
-            {
-              printf("[INFO] Starting Rx for 10 se\n");
-              sx126x_status_t tx_status = sx126x_set_rx(&context, 10000);
-                  if (tx_status != SX126X_STATUS_OK) {
-                        printf("[ERROR] TX failed: %d\n", tx_status);
-                    }
-            }
-          
-
-        // // Poll BUSY pin to confirm TX is happening
-        // printf("BUSY pin state: ");
-        // for (int i = 0; i < 10; i++) {
-        //     printf("%d ", HAL_GPIO_ReadPin(GPIOA, BUSY_PIN));
-        //     HAL_Delay(50); // Wait 500ms total
-        // }
-        // printf("\n");
-
-        // // Poll IRQ status manually
-        // sx126x_irq_mask_t irq_reg;
-        // for (int i = 0; i < 5; i++) {
-        //     sx126x_get_irq_status(&context, &irq_reg);
-        //     printf("IRQ after %d00ms: %04X\n", i * 5, irq_reg);
-        //     if (irq_reg & SX126X_IRQ_TX_DONE) {
-        //         printf("[IRQ] TX DONE detected\n");
-        //         sx126x_clear_irq_status(&context, SX126X_IRQ_TX_DONE);
-        //         break;
-        //     } else if (irq_reg & SX126X_IRQ_TIMEOUT) {
-        //         printf("[IRQ] TIMEOUT detected\n");
-        //         sx126x_clear_irq_status(&context, SX126X_IRQ_TIMEOUT);
-        //         break;
-        //     }
-            HAL_Delay(500);
-
-
-          // }
-              chars_read = 0;
-
-          }
+    __disable_irq();
+        if( IsMacProcessPending == 1 )
+        {
+            // Clear flag and prevent MCU to go into low power modes.
+            IsMacProcessPending = 0;
+        }
+        else
+        {
+            // The MCU wakes up through events
+            // BoardLowPowerHandler( );
+        }
+        __enable_irq();
   }
   /* USER CODE END 3 */
 }
@@ -386,6 +376,7 @@ void SystemClock_Config(void)
   __HAL_RCC_PWR_CLK_ENABLE();
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE3);
 
+  
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
@@ -418,21 +409,41 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+
+  // /** Enable RTC peripheral clock
+  // */
+  // __HAL_RCC_RTC_ENABLE();
 }
 
-static void MX_RTC_Init(void)
+static HAL_StatusTypeDef MX_RTC_Init(void)
 {
-
-  /* USER CODE BEGIN RTC_Init 0 */
-
-  /* USER CODE END RTC_Init 0 */
+  
 
   RTC_TimeTypeDef sTime = {0};
   RTC_DateTypeDef sDate = {0};
 
-  /* USER CODE BEGIN RTC_Init 1 */
+  // // Reset backup domain
+  // __HAL_RCC_BACKUPRESET_FORCE();
+  // __HAL_RCC_BACKUPRESET_RELEASE();
 
-  /* USER CODE END RTC_Init 1 */
+  // // Ensure LSE is enabled
+  // RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+  // RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSE;
+  // RCC_OscInitStruct.LSEState = RCC_LSE_ON;
+  // RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+  // if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  // {
+  //     printf("LSE configuration failed!\n");
+  //     return HAL_ERROR;
+  // }
+
+  // // Enable RTC clock
+  // __HAL_RCC_RTC_ENABLE();
+
+  // // Disable RTC write protection
+  
+  // hrtc.Instance->WPR = 0xCA;
+  // hrtc.Instance->WPR = 0x53;
 
   /** Initialize RTC Only
   */
@@ -445,38 +456,43 @@ static void MX_RTC_Init(void)
   hrtc.Init.OutPutType = RTC_OUTPUT_TYPE_OPENDRAIN;
   if (HAL_RTC_Init(&hrtc) != HAL_OK)
   {
-    Error_Handler();
+    printf("RTC initialization failed!\n");
+    return HAL_ERROR;
   }
 
-  /* USER CODE BEGIN Check_RTC_BKUP */
+  // // Check backup register to avoid overwriting time/date
+  // if (HAL_RTCEx_BKUPRead(&hrtc, RTC_BKP_DR0) != 0x32F2)
+  // {
+    /** Initialize RTC and set the Time and Date
+    */
+    sTime.Hours = 0x11; // 11 in BCD
+    sTime.Minutes = 0x59; // 59 in BCD
+    sTime.Seconds = 0x00; // 0 in BCD
+    sTime.TimeFormat = RTC_HOURFORMAT12_AM;
+    sTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
+    sTime.StoreOperation = RTC_STOREOPERATION_RESET;
+    if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BCD) != HAL_OK)
+    {
+      printf("RTC set time failed!\n");
+      return HAL_ERROR;
+    }
+    sDate.WeekDay = RTC_WEEKDAY_MONDAY;
+    sDate.Month = RTC_MONTH_JANUARY;
+    sDate.Date = 0x01; // 1 in BCD
+    sDate.Year = 0x25; // 25 in BCD
 
-  /* USER CODE END Check_RTC_BKUP */
+    if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BCD) != HAL_OK)
+    {
+      printf("RTC set date failed!\n");
+      return HAL_ERROR;
+    }
 
-  /** Initialize RTC and set the Time and Date
-  */
-  sTime.Hours = 11;
-  sTime.Minutes = 59;
-  sTime.Seconds = 0;
-  sTime.TimeFormat = RTC_HOURFORMAT12_AM;
-  sTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
-  sTime.StoreOperation = RTC_STOREOPERATION_RESET;
-  if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BCD) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sDate.WeekDay = RTC_WEEKDAY_MONDAY;
-  sDate.Month = RTC_MONTH_JANUARY;
-  sDate.Date = 1;
-  sDate.Year = 25;
+  //   // Write backup register
+  //   HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR0, 0x32F2);
+  // }
 
-  if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BCD) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN RTC_Init 2 */
-
-  /* USER CODE END RTC_Init 2 */
-
+  printf("RTC initialized successfully!\n");
+  return HAL_OK;
 }
 
 /**
@@ -711,132 +727,251 @@ int _read(int file, char *ptr, int len)
 /* EXTI Callback Function ----------------------------------------------------*/
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-  if(GPIO_Pin == DIO1)
-  {
-      sx126x_irq_mask_t irq_regs;
-    sx126x_get_and_clear_irq_status( &context, &irq_regs );
+  // if(GPIO_Pin == DIO1)
+  // {
+  //     sx126x_irq_mask_t irq_regs;
+  //   sx126x_get_and_clear_irq_status( &context, &irq_regs );
 
-   if( ( irq_regs & SX126X_IRQ_TX_DONE ) == SX126X_IRQ_TX_DONE )
-   {
-         printf("[IRQ] TX DONE;\n");
-         printf("[IRQ] Clearing the TX DONE IRQ\n");
-   }
-   else if (( irq_regs & SX126X_IRQ_TIMEOUT ) == SX126X_IRQ_TIMEOUT)
-   {
-          printf("[IRQ] TX TIMEOUT;\n");
-         printf("[IRQ] Clearing the TIMEOUT IRQ\n");
-   }
-   else if ((irq_regs & SX126X_IRQ_RX_DONE) == SX126X_IRQ_RX_DONE)
-   {
-      uint8_t buffer_rx[255];
-      uint8_t size;
-      sx126x_received( &context, buffer_rx, &size, 255 );
+  //  if( ( irq_regs & SX126X_IRQ_TX_DONE ) == SX126X_IRQ_TX_DONE )
+  //  {
+  //        printf("[IRQ] TX DONE;\n");
+  //        printf("[IRQ] Clearing the TX DONE IRQ\n");
+  //  }
+  //  else if (( irq_regs & SX126X_IRQ_TIMEOUT ) == SX126X_IRQ_TIMEOUT)
+  //  {
+  //         printf("[IRQ] TX TIMEOUT;\n");
+  //        printf("[IRQ] Clearing the TIMEOUT IRQ\n");
+  //  }
+  //  else if ((irq_regs & SX126X_IRQ_RX_DONE) == SX126X_IRQ_RX_DONE)
+  //  {
+  //     uint8_t buffer_rx[255];
+  //     uint8_t size;
+  //     sx126x_received( &context, buffer_rx, &size, 255 );
 
-   }
-  }
+  //  }
+  // }
 }
 
 
-
-uint8_t compute_lora_ldro( const sx126x_lora_sf_t sf, const sx126x_lora_bw_t bw )
+static void OnMacProcessNotify( void )
 {
-    switch( bw )
-    {
-    case SX126X_LORA_BW_500:
-        return 0;
+    IsMacProcessPending = 1;
+}
 
-    case SX126X_LORA_BW_250:
-        if( sf == SX126X_LORA_SF12 )
-        {
-            return 1;
-        }
-        else
-        {
-            return 0;
-        }
+static void OnNvmDataChange( LmHandlerNvmContextStates_t state, uint16_t size )
+{
+    DisplayNvmDataChange( state, size );
+}
 
-    case SX126X_LORA_BW_125:
-        if( ( sf == SX126X_LORA_SF12 ) || ( sf == SX126X_LORA_SF11 ) )
-        {
-            return 1;
-        }
-        else
-        {
-            return 0;
-        }
+static void OnNetworkParametersChange( CommissioningParams_t* params )
+{
+    DisplayNetworkParametersUpdate( params );
+}
 
-    case SX126X_LORA_BW_062:
-        if( ( sf == SX126X_LORA_SF12 ) || ( sf == SX126X_LORA_SF11 ) || ( sf == SX126X_LORA_SF10 ) )
-        {
-            return 1;
-        }
-        else
-        {
-            return 0;
-        }
+static void OnMacMcpsRequest( LoRaMacStatus_t status, McpsReq_t *mcpsReq, TimerTime_t nextTxIn )
+{
+    DisplayMacMcpsRequestUpdate( status, mcpsReq, nextTxIn );
+}
 
-    case SX126X_LORA_BW_041:
-        if( ( sf == SX126X_LORA_SF12 ) || ( sf == SX126X_LORA_SF11 ) || ( sf == SX126X_LORA_SF10 ) ||
-            ( sf == SX126X_LORA_SF9 ) )
-        {
-            return 1;
-        }
-        else
-        {
-            return 0;
-        }
-
-    case SX126X_LORA_BW_031:
-    case SX126X_LORA_BW_020:
-    case SX126X_LORA_BW_015:
-    case SX126X_LORA_BW_010:
-    case SX126X_LORA_BW_007:
-        return 1;
-
-    default:
-        return 0;
-    }
+static void OnMacMlmeRequest( LoRaMacStatus_t status, MlmeReq_t *mlmeReq, TimerTime_t nextTxIn )
+{
+    DisplayMacMlmeRequestUpdate( status, mlmeReq, nextTxIn );
 }
 
 
-
-void sx126x_received( void* context, uint8_t* buffer, uint8_t* size, uint8_t max_size )
+static void OnJoinRequest( LmHandlerJoinParams_t* params )
 {
-  sx126x_rx_buffer_status_t rx_buffer_status;
-  sx126x_pkt_status_lora_t  pkt_status_lora;
-
-  sx126x_get_rx_buffer_status( context, &rx_buffer_status );
-
-  if( max_size < rx_buffer_status.pld_len_in_bytes )
+    DisplayJoinRequestUpdate( params );
+    if( params->Status == LORAMAC_HANDLER_ERROR )
     {
-        printf( "Received more bytes than expected (%d vs %d), reception in buffer cancelled.\n",
-                             rx_buffer_status.pld_len_in_bytes, max_size );
-        *size = 0;
+        LmHandlerJoin( );
     }
     else
     {
-        sx126x_read_buffer( context, rx_buffer_status.buffer_start_pointer, buffer, rx_buffer_status.pld_len_in_bytes );
-        *size = rx_buffer_status.pld_len_in_bytes;
+        LmHandlerRequestClass( LORAWAN_DEFAULT_CLASS );
     }
-    // Copy to null-terminated string
-    char str[((*size) + 1)];
-    memcpy(str, buffer, *size);
-    str[*size] = '\0';
-            
-    printf("[RX] Data: %s \nPayload_length: %d\n", str, rx_buffer_status.pld_len_in_bytes);
-    printf( "Packet status:\n" );
-    if( PACKET_TYPE == SX126X_PKT_TYPE_LORA )
+}
+
+static void OnTxData( LmHandlerTxParams_t* params )
+{
+    DisplayTxUpdate( params );
+}
+
+static void OnRxData( LmHandlerAppData_t* appData, LmHandlerRxParams_t* params )
+{
+    DisplayRxUpdate( appData, params );
+
+    switch( appData->Port )
     {
-        sx126x_get_lora_pkt_status( context, &pkt_status_lora );
-        printf( "  - RSSI packet = %i dBm\n", pkt_status_lora.rssi_pkt_in_dbm );
-        printf( "  - Signal RSSI packet = %i dBm\n", pkt_status_lora.signal_rssi_pkt_in_dbm );
-        printf( "  - SNR packet = %i dB\n", pkt_status_lora.snr_pkt_in_db );
+    case 1: // The application LED can be controlled on port 1 or 2
+    case LORAWAN_APP_PORT:
+        {
+            // AppLedStateOn = appData->Buffer[0] & 0x01;
+        }
+        break;
+    default:
+        break;
+    }
+
+    // Switch LED 2 ON for each received downlink
+    // GpioWrite( &Led2, 1 );
+    // TimerStart( &Led2Timer );
+}
+
+static void OnClassChange( DeviceClass_t deviceClass )
+{
+    DisplayClassUpdate( deviceClass );
+
+    // Inform the server as soon as possible that the end-device has switched to ClassB
+    LmHandlerAppData_t appData =
+    {
+        .Buffer = NULL,
+        .BufferSize = 0,
+        .Port = 0,
+    };
+    LmHandlerSend( &appData, LORAMAC_HANDLER_CONFIRMED_MSG );
+}
+
+static void OnBeaconStatusChange( LoRaMacHandlerBeaconParams_t* params )
+{
+    switch( params->State )
+    {
+        case LORAMAC_HANDLER_BEACON_RX:
+        {
+            // TimerStart( &LedBeaconTimer );
+            break;
+        }
+        case LORAMAC_HANDLER_BEACON_LOST:
+        case LORAMAC_HANDLER_BEACON_NRX:
+        {
+            // TimerStop( &LedBeaconTimer );
+            break;
+        }
+        default:
+        {
+            break;
+        }
+    }
+
+    DisplayBeaconUpdate( params );
+}
+
+#if( LMH_SYS_TIME_UPDATE_NEW_API == 1 )
+static void OnSysTimeUpdate( bool isSynchronized, int32_t timeCorrection )
+{
+
+}
+#else
+static void OnSysTimeUpdate( void )
+{
+
+}
+#endif
+
+
+/*!
+ * Prepares the payload of the frame and transmits it.
+ */
+static void PrepareTxFrame( void )
+{
+    if( LmHandlerIsBusy( ) == true )
+    {
+        return;
+    }
+
+    uint8_t channel = 0;
+
+    AppData.Port = LORAWAN_APP_PORT;
+
+    CayenneLppReset( );
+    CayenneLppAddDigitalInput( channel++, 1 );
+    CayenneLppAddAnalogInput( channel++, (3.1 ) * 100 / 254 );
+
+    CayenneLppCopy( AppData.Buffer );
+    AppData.BufferSize = CayenneLppGetSize( );
+
+    if( LmHandlerSend( &AppData, LmHandlerParams.IsTxConfirmed ) == LORAMAC_HANDLER_SUCCESS )
+    {
+        // Switch LED 1 ON
+        // GpioWrite( &Led1, 1 );
+        // TimerStart( &Led1Timer );
+    }
+}
+
+static void StartTxProcess( LmHandlerTxEvents_t txEvent )
+{
+    switch( txEvent )
+    {
+    default:
+        // Intentional fall through
+    case LORAMAC_HANDLER_TX_ON_TIMER:
+        {
+            // Schedule 1st packet transmission
+            TimerInit( &TxTimer, OnTxTimerEvent );
+            TimerSetValue( &TxTimer, TxPeriodicity );
+            OnTxTimerEvent( NULL );
+        }
+        break;
+    case LORAMAC_HANDLER_TX_ON_EVENT:
+        {
+        }
+        break;
     }
 }
 
 
+static void UplinkProcess( void )
+{
+    uint8_t isPending = 0;
+    __disable_irq();
+    isPending = IsTxFramePending;
+    IsTxFramePending = 0;
+    __enable_irq();
+    if( isPending == 1 )
+    {
+        PrepareTxFrame( );
+    }
+}
+
+static void OnTxPeriodicityChanged( uint32_t periodicity )
+{
+    TxPeriodicity = periodicity;
+
+    if( TxPeriodicity == 0 )
+    { // Revert to application default periodicity
+        TxPeriodicity = APP_TX_DUTYCYCLE + randr( -APP_TX_DUTYCYCLE_RND, APP_TX_DUTYCYCLE_RND );
+    }
+
+    // Update timer periodicity
+    TimerStop( &TxTimer );
+    TimerSetValue( &TxTimer, TxPeriodicity );
+    TimerStart( &TxTimer );
+}
+
+static void OnTxFrameCtrlChanged( LmHandlerMsgTypes_t isTxConfirmed )
+{
+    LmHandlerParams.IsTxConfirmed = isTxConfirmed;
+}
+
+static void OnPingSlotPeriodicityChanged( uint8_t pingSlotPeriodicity )
+{
+    LmHandlerParams.PingSlotPeriodicity = pingSlotPeriodicity;
+}
 
 
+/*!
+ * Function executed on TxTimer event
+ */
+static void OnTxTimerEvent( void* context )
+{
+    TimerStop( &TxTimer );
+
+    IsTxFramePending = 1;
+
+    // Schedule next transmission
+    TimerSetValue( &TxTimer, TxPeriodicity );
+    TimerStart( &TxTimer );
+}
 
 /* USER CODE END 4 */
 
@@ -851,6 +986,8 @@ void Error_Handler(void)
   __disable_irq();
   while (1)
   {
+    printf("Error occurred! Continuing...\n");
+    HAL_Delay(1000);
   }
   /* USER CODE END Error_Handler_Debug */
 }

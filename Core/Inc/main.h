@@ -40,9 +40,11 @@ extern "C" {
 #include "LmhpCompliance.h"     /*Implement timer.h and systime.h in LoRaMac.h file in current stm32 files*/
 #include "CayenneLpp.h"
 #include "LmHandlerMsgDisplay.h"
-#include "radio.h"
+// #include "radio.h"
 #include "timer.h"
 #include "systime.h"
+#include "radio_board.h"
+
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -92,6 +94,91 @@ void Error_Handler(void);
 #define BUSY_PIN GPIO_PIN_7
 #define RESET_PIN GPIO_PIN_3
 #define RESET_PIN_PORT GPIOA
+
+
+
+
+
+#ifndef ACTIVE_REGION
+
+#warning "No active region defined, LORAMAC_REGION_EU868 will be used as default."
+
+#define ACTIVE_REGION LORAMAC_REGION_US915
+
+#endif
+
+/*!
+ * LoRaWAN default end-device class
+ */
+#ifndef LORAWAN_DEFAULT_CLASS
+#define LORAWAN_DEFAULT_CLASS                       CLASS_A
+#endif
+
+
+/*!
+ * Defines the application data transmission duty cycle. 5s, value in [ms].
+ */
+#define APP_TX_DUTYCYCLE                            5000
+
+
+/*!
+ * Defines a random delay for application data transmission duty cycle. 1s,
+ * value in [ms].
+ */
+#define APP_TX_DUTYCYCLE_RND                        1000
+
+/*!
+ * LoRaWAN Adaptive Data Rate
+ *
+ * \remark Please note that when ADR is enabled the end-device should be static
+ */
+#define LORAWAN_ADR_STATE                           LORAMAC_HANDLER_ADR_ON
+
+
+/*!
+ * Default datarate
+ *
+ * \remark Please note that LORAWAN_DEFAULT_DATARATE is used only when ADR is disabled 
+ */
+#define LORAWAN_DEFAULT_DATARATE                    DR_0
+
+
+/*!
+ * LoRaWAN confirmed messages
+ */
+#define LORAWAN_DEFAULT_CONFIRMED_MSG_STATE         LORAMAC_HANDLER_CONFIRMED_MSG
+
+
+
+/*!
+ * User application data buffer size
+ */
+#define LORAWAN_APP_DATA_BUFFER_MAX_SIZE            242
+
+/*!
+ * LoRaWAN ETSI duty cycle control enable/disable
+ *
+ * \remark Please note that ETSI mandates duty cycled transmissions. Use only for test purposes
+ */
+#define LORAWAN_DUTYCYCLE_ON                        true
+
+/*!
+ * LoRaWAN application port
+ * @remark The allowed port range is from 1 up to 223. Other values are reserved.
+ */
+#define LORAWAN_APP_PORT                            2
+
+/*!
+ *
+ */
+typedef enum
+{
+    LORAMAC_HANDLER_TX_ON_TIMER,
+    LORAMAC_HANDLER_TX_ON_EVENT,
+}LmHandlerTxEvents_t;
+
+
+
 
 /* USER CODE BEGIN Private defines */
 
