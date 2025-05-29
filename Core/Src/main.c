@@ -113,23 +113,31 @@ RTC_HandleTypeDef hrtc;
 /*!
  * User application data
  */
-static uint8_t AppDataBuffer[LORAWAN_APP_DATA_BUFFER_MAX_SIZE];
+// static uint8_t AppDataBuffer[LORAWAN_APP_DATA_BUFFER_MAX_SIZE];
 
 /*!
  * User application data structure
  */
-static LmHandlerAppData_t AppData =
-{
-    .Buffer = AppDataBuffer,
-    .BufferSize = 0,
-    .Port = 0,
-};
+// static LmHandlerAppData_t AppData =
+// {
+//     .Buffer = AppDataBuffer,
+//     .BufferSize = 0,
+//     .Port = 0,
+// };
 
 
 /*!
  * Timer to handle the application data transmission duty cycle
  */
 static TimerEvent_t TxTimer;
+
+#define UID_BASE_ADDR 0x1FFF7A10
+void read_device_uid(uint8_t *uid) {
+  // Read 12 bytes from UID base address
+  for (int i = 0; i < 12; i++) {
+      uid[i] = *(volatile uint8_t *)(UID_BASE_ADDR + i);
+  }
+}
 
 
 uint32_t BoardGetRandomSeed( void )
@@ -155,87 +163,44 @@ static HAL_StatusTypeDef MX_RTC_Init(void);
 static void MX_TIM2_Init(void);
 
 
+// Foward declaration
+static void lorawan_has_joined_handler(void);
+static void lorawan_rx_handler(lmh_app_data_t *app_data);
+static void lorawan_confirm_class_handler(DeviceClass_t Class);
+static void lorawan_join_failed_handler(void);
+static void send_lora_frame(void);
+static uint32_t timers_init(void);
 
-static void OnMacProcessNotify( void );
-static void OnNvmDataChange( LmHandlerNvmContextStates_t state, uint16_t size );
-static void OnNetworkParametersChange( CommissioningParams_t* params );
-static void OnMacMcpsRequest( LoRaMacStatus_t status, McpsReq_t *mcpsReq, TimerTime_t nextTxIn );
-static void OnMacMlmeRequest( LoRaMacStatus_t status, MlmeReq_t *mlmeReq, TimerTime_t nextTxIn );
-static void OnJoinRequest( LmHandlerJoinParams_t* params );
-static void OnTxData( LmHandlerTxParams_t* params );
-static void OnRxData( LmHandlerAppData_t* appData, LmHandlerRxParams_t* params );
-static void OnClassChange( DeviceClass_t deviceClass );
-static void OnBeaconStatusChange( LoRaMacHandlerBeaconParams_t* params );
 
-#if( LMH_SYS_TIME_UPDATE_NEW_API == 1 )
-static void OnSysTimeUpdate( bool isSynchronized, int32_t timeCorrection );
-#else
-static void OnSysTimeUpdate( void );
-#endif
-static void PrepareTxFrame( void );
-static void StartTxProcess( LmHandlerTxEvents_t txEvent );
-static void UplinkProcess( void );
+// APP_TIMER_DEF(lora_tx_timer_id);                                              ///< LoRa tranfer timer instance.
+TimerEvent_t appTimer;														  ///< LoRa tranfer timer instance.
+static uint8_t m_lora_app_data_buffer[LORAWAN_APP_DATA_BUFF_SIZE];			  ///< Lora user application data buffer.
+static lmh_app_data_t m_lora_app_data = {m_lora_app_data_buffer, 0, 0, 0, 0}; ///< Lora user application data structure.
 
-static void OnTxPeriodicityChanged( uint32_t periodicity );
-static void OnTxFrameCtrlChanged( LmHandlerMsgTypes_t isTxConfirmed );
 
-/*!
- * Function executed on TxTimer event
+
+/**@brief Structure containing LoRaWan parameters, needed for lmh_init()
  */
-static void OnTxTimerEvent( void* context );
+static lmh_param_t lora_param_init = {LORAWAN_ADR_ON, LORAWAN_DEFAULT_DATARATE, LORAWAN_PUBLIC_NETWORK, JOINREQ_NBTRIALS, LORAWAN_DEFAULT_TX_POWER, LORAWAN_DUTYCYCLE_OFF};
 
-static LmHandlerCallbacks_t LmHandlerCallbacks =
-{
-    .GetBatteryLevel = NULL,
-    .GetTemperature = NULL,
-    .GetRandomSeed = BoardGetRandomSeed,
-    .OnMacProcess = OnMacProcessNotify,
-    .OnNvmDataChange = OnNvmDataChange,
-    .OnNetworkParametersChange = OnNetworkParametersChange,
-    .OnMacMcpsRequest = OnMacMcpsRequest,
-    .OnMacMlmeRequest = OnMacMlmeRequest,
-    .OnJoinRequest = OnJoinRequest,
-    .OnTxData = OnTxData,
-    .OnRxData = OnRxData,
-    .OnClassChange= OnClassChange,
-    .OnBeaconStatusChange = OnBeaconStatusChange,
-    .OnSysTimeUpdate = OnSysTimeUpdate,
-};
+/**@brief Structure containing LoRaWan callback functions, needed for lmh_init()
+*/
+static lmh_callback_t lora_callbacks = { read_device_uid, BoardGetRandomSeed,
+										lorawan_rx_handler, lorawan_has_joined_handler,
+										lorawan_confirm_class_handler, lorawan_join_failed_handler};
 
+uint8_t nodeDeviceEUI[8] = {0x00, 0x95, 0x64, 0x1F, 0xDA, 0x91, 0x19, 0x0B};
 
-static LmHandlerParams_t LmHandlerParams =
-{
-    .Region = ACTIVE_REGION,
-    .AdrEnable = LORAWAN_ADR_STATE,
-    .IsTxConfirmed = LORAWAN_DEFAULT_CONFIRMED_MSG_STATE,
-    .TxDatarate = LORAWAN_DEFAULT_DATARATE,
-    .PublicNetworkEnable = false,
-    .DutyCycleEnabled = LORAWAN_DUTYCYCLE_ON,
-    .DataBufferMaxSize = LORAWAN_APP_DATA_BUFFER_MAX_SIZE,
-    .DataBuffer = AppDataBuffer,
-    .PingSlotPeriodicity = REGION_COMMON_DEFAULT_PING_SLOT_PERIODICITY,
-};
+uint8_t nodeAppEUI[8] = {0x70, 0xB3, 0xD5, 0x7E, 0xD0, 0x02, 0x01, 0xE1};
 
-static LmhpComplianceParams_t LmhpComplianceParams =
-{
-    // .FwVersion.Value = FIRMWARE_VERSION,
-    .OnTxPeriodicityChanged = OnTxPeriodicityChanged,
-    .OnTxFrameCtrlChanged = OnTxFrameCtrlChanged,
-    // .OnPingSlotPeriodicityChanged = OnPingSlotPeriodicityChanged,
-};
+uint8_t nodeAppKey[16] = {0x07, 0xC0, 0x82, 0x0C, 0x30, 0xB9, 0x08, 0x70, 0x0C, 0x0F, 0x70, 0x06, 0x00, 0xB0, 0xBE, 0x09};
 
+uint32_t nodeDevAddr = 0x260116F8;
 
+uint8_t nodeNwsKey[16] = {0x7E, 0xAC, 0xE2, 0x55, 0xB8, 0xA5, 0xE2, 0x69, 0x91, 0x51, 0x96, 0x06, 0x47, 0x56, 0x9D, 0x23};
 
-/*!
- * Indicates if LoRaMacProcess call is pending.
- * 
- * \warning If variable is equal to 0 then the MCU can be set in low power mode
- */
-static volatile uint8_t IsMacProcessPending = 0;
+uint8_t nodeAppsKey[16] = {0xFB, 0xAC, 0xB6, 0x47, 0xF3, 0x58, 0x45, 0xC7, 0x50, 0x7D, 0xBF, 0x16, 0x8B, 0xA8, 0xC1, 0x7C};
 
-static volatile uint8_t IsTxFramePending = 0;
-
-static volatile uint32_t TxPeriodicity = 0;
 
 /* USER CODE BEGIN PFP */
 
@@ -310,6 +275,11 @@ int main(void)
   context->reset.pin = RESET_PIN;
   context->reset.GPIO_PORT = RESET_PIN_PORT;
 
+  printf("=====================================\n");
+  printf("SX126x LoRaWan test\n");
+  printf("=====================================\n");
+
+  sx126x_hal_reset(NULL); // passing null as we don't need pin as it is directly defined.
   // Initialize transmission periodicity variable
   TxPeriodicity = APP_TX_DUTYCYCLE + randr( -APP_TX_DUTYCYCLE_RND, APP_TX_DUTYCYCLE_RND );
 
@@ -500,44 +470,32 @@ static HAL_StatusTypeDef MX_RTC_Init(void)
   * @param None
   * @retval None
   */
-static void MX_TIM2_Init(void)
+ static void MX_TIM2_Init(void)
 {
+    TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+    TIM_MasterConfigTypeDef sMasterConfig = {0};
 
-  /* USER CODE BEGIN TIM2_Init 0 */
-
-  /* USER CODE END TIM2_Init 0 */
-
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-
-  /* USER CODE BEGIN TIM2_Init 1 */
-
-  /* USER CODE END TIM2_Init 1 */
-  htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 41999;
-  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 999;
-  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM2_Init 2 */
-
-  /* USER CODE END TIM2_Init 2 */
-
+    htim2.Instance = TIM2;
+    htim2.Init.Prescaler = 83999; // 84 MHz / (83999 + 1) = 1 kHz
+    htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+    htim2.Init.Period = 0; // 1 ms interrupt
+    htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+    htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+    if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+    {
+        Error_Handler();
+    }
+    sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+    if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+    {
+        Error_Handler();
+    }
+    sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+    sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+    if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+    {
+        Error_Handler();
+    }
 }
 
 

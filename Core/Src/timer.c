@@ -1,219 +1,173 @@
 /*
- * timer.c - Timer management for LoRaMac-node on STM32F4RE
- * Adapted for STM32CubeMX HAL with RTC and TIM2
- */
+ / _____)             _              | |
+( (____  _____ ____ _| |_ _____  ____| |__
+ \____ \| ___ |    (_   _) ___ |/ ___)  _ \
+ _____) ) ____| | | || |_| ____( (___| | | |
+(______/|_____)_|_|_| \__)_____)\____)_| |_|
+    (C)2013 Semtech
+
+Description: Timer objects and scheduling management
+
+License: Revised BSD License, see LICENSE.TXT file include in the project
+
+Maintainer: Miguel Luis and Gregory Cristian
+*/
+
+/******************************************************************************
+ * @file    timer.c
+ * @author  Insight SiP
+ * @version V1.0.0
+ * @date    02-mars-2018
+ * @brief   Timer implementation for STM32.
+ *
+ *****************************************************************************/
 
  #include "timer.h"
  #include "stm32f4xx_hal.h"
- #include "systime.h"
+ #include <stdio.h>
  
- // External TIM2 and RTC handles from CubeMX-generated main.c
+ // External TIM2 handle from main.c
  extern TIM_HandleTypeDef htim2;
- extern RTC_HandleTypeDef hrtc;
  
  // Timer list head
  static TimerEvent_t *TimerListHead = NULL;
  
- // Context for elapsed time reference (in milliseconds)
- static uint32_t TimerContext = 0;
+ // Available timers (up to 10, matching ESP32)
+ static bool timerInUse[10] = {false};
  
- /*!
-  * \brief Initializes the timer hardware (TIM2)
+ // TIM2 overflow counter (for long-running applications)
+ static volatile uint32_t tim2Overflows = 0;
+ 
+ /**@brief TIM2 interrupt handler
   */
- void TimerHwInit(void)
+ void TIM2_IRQHandler(void)
  {
+     HAL_TIM_IRQHandler(&htim2);
+ }
+ 
+ /**@brief TIM2 callback
+  */
+ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+ {
+     if (htim->Instance == TIM2)
+     {
+         tim2Overflows++; // Increment on overflow
+         if (TimerListHead != NULL) // Optimize: skip if no timers
+         {
+             TimerHandleEvents();
+         }
+     }
+ }
+ 
+ /**@brief Initializes the STM32 timer peripheral
+  */
+ void TimerConfig(void)
+ {
+     // TIM2 is initialized in MX_TIM2_Init with 1 ms resolution
      HAL_TIM_Base_Start_IT(&htim2);
  }
  
- /*!
-  * \brief Sets the timer context using RTC
+ /**@brief Initializes the timer object
   */
- void RtcSetTimerContext(void)
+ void TimerInit(TimerEvent_t *obj, void (*callback)(void))
  {
-     SysTime_t sysTime = SysTimeGet();
-     TimerContext = (sysTime.Seconds * 1000) + sysTime.SubSeconds;
- }
- 
- /*!
-  * \brief Gets the current timer context
-  */
- uint32_t RtcGetTimerContext(void)
- {
-     return TimerContext;
- }
- 
- /*!
-  * \brief Gets the elapsed time since the last context (in milliseconds)
-  */
- uint32_t RtcGetTimerElapsedTime(void)
- {
-     SysTime_t sysTime = SysTimeGet();
-     uint32_t now = (sysTime.Seconds * 1000) + sysTime.SubSeconds;
-     return now - TimerContext;
- }
- 
- /*!
-  * \brief Gets the current timer value in milliseconds
-  */
- uint32_t RtcGetTimerValue(void)
- {
-     SysTime_t sysTime = SysTimeGet();
-     return (sysTime.Seconds * 1000) + sysTime.SubSeconds;
- }
- 
- /*!
-  * \brief Timer IRQ handler (called from TIM2_IRQHandler)
-  */
- void TimerIrqHandler(void)
- {
-     uint32_t elapsedTime = 0;
-     TimerEvent_t *current = TimerListHead;
- 
-     while (current != NULL)
+     if (obj == NULL || callback == NULL)
      {
-         elapsedTime = RtcGetTimerElapsedTime();
-         if (elapsedTime >= current->Timestamp)
-         {
-             TimerListHead = current->Next;
-             current->IsStarted = false;
+         printf("TIM: Invalid timer object or callback\n");
+         return;
+     }
  
-             if (current->Callback != NULL)
-             {
-                 current->Callback(current->Context);
-             }
- 
-             TimerEvent_t *temp = current;
-             current = current->Next;
-             temp->Next = NULL;
-         }
-         else
+     // Find an available timer number
+     for (int idx = 0; idx < 10; idx++)
+     {
+         if (!timerInUse[idx])
          {
-             break;
+             timerInUse[idx] = true;
+             obj->timerNum = idx;
+             obj->oneShot = true;
+             obj->Timestamp = 0;
+             obj->ReloadValue = 0;
+             obj->IsRunning = false;
+             obj->Callback = callback;
+             obj->Next = NULL;
+             return;
          }
      }
+     printf("TIM: No more timers available!\n");
  }
  
- /*!
-  * \brief Initializes a timer
-  */
- void TimerInit(TimerEvent_t *obj, void (*callback)(void *context))
- {
-     obj->Timestamp = 0;
-     obj->ReloadValue = 0;
-     obj->IsStarted = false;
-     obj->IsNext2Expire = false;
-     obj->Callback = callback;
-     obj->Context = NULL;
-     obj->Next = NULL;
- }
- 
- /*!
-  * \brief Sets the timer context
-  */
- void TimerSetContext(TimerEvent_t *obj, void *context)
- {
-     obj->Context = context;
- }
- 
- /*!
-  * \brief Starts a timer
+ /**@brief Starts and adds the timer object to the list of timer events
   */
  void TimerStart(TimerEvent_t *obj)
  {
-     uint32_t elapsedTime = 0;
+     if (obj == NULL || obj->IsRunning)
+         return;
+ 
      __disable_irq();
  
-     if ((obj == NULL) || (obj->IsStarted == true))
+     obj->Timestamp = TimerGetCurrentTime() + obj->ReloadValue;
+     obj->IsRunning = true;
+ 
+     // Insert into sorted timer list
+     TimerEvent_t *cur = TimerListHead;
+     TimerEvent_t *prev = NULL;
+ 
+     while (cur != NULL && cur->Timestamp <= obj->Timestamp)
      {
-         __enable_irq();
-         return;
+         prev = cur;
+         cur = cur->Next;
      }
  
-     obj->Timestamp = obj->ReloadValue;
-     obj->IsStarted = true;
- 
-     if (TimerListHead == NULL)
+     if (prev == NULL)
      {
+         obj->Next = TimerListHead;
          TimerListHead = obj;
-         RtcSetTimerContext();
      }
      else
      {
-         elapsedTime = RtcGetTimerElapsedTime();
-         obj->Timestamp += elapsedTime;
- 
-         TimerEvent_t *current = TimerListHead;
-         TimerEvent_t *previous = NULL;
- 
-         while (current != NULL)
-         {
-             if (obj->Timestamp < current->Timestamp)
-             {
-                 if (previous == NULL)
-                 {
-                     TimerListHead = obj;
-                 }
-                 else
-                 {
-                     previous->Next = obj;
-                 }
-                 obj->Next = current;
-                 break;
-             }
-             previous = current;
-             current = current->Next;
-         }
- 
-         if (current == NULL)
-         {
-             previous->Next = obj;
-         }
+         obj->Next = prev->Next;
+         prev->Next = obj;
      }
  
      __enable_irq();
  }
  
- /*!
-  * \brief Stops a timer
+ /**@brief Stops and removes the timer object from the list of timer events
   */
  void TimerStop(TimerEvent_t *obj)
  {
+     if (obj == NULL || !obj->IsRunning)
+         return;
+ 
      __disable_irq();
  
-     if ((obj == NULL) || (TimerListHead == NULL))
+     TimerEvent_t *cur = TimerListHead;
+     TimerEvent_t *prev = NULL;
+ 
+     while (cur != NULL && cur != obj)
      {
-         __enable_irq();
-         return;
+         prev = cur;
+         cur = cur->Next;
      }
  
-     TimerEvent_t *previous = TimerListHead;
-     TimerEvent_t *current = previous;
- 
-     while (current != NULL)
+     if (cur == obj)
      {
-         if (current == obj)
+         if (prev == NULL)
          {
-             if (current == TimerListHead)
-             {
-                 TimerListHead = current->Next;
-             }
-             else
-             {
-                 previous->Next = current->Next;
-             }
-             current->IsStarted = false;
-             current->Next = NULL;
-             break;
+             TimerListHead = cur->Next;
          }
-         previous = current;
-         current = current->Next;
+         else
+         {
+             prev->Next = cur->Next;
+         }
+         obj->IsRunning = false;
+         obj->Next = NULL;
      }
  
      __enable_irq();
  }
  
- /*!
-  * \brief Resets a timer
+ /**@brief Resets the timer object
   */
  void TimerReset(TimerEvent_t *obj)
  {
@@ -221,32 +175,82 @@
      TimerStart(obj);
  }
  
- /*!
-  * \brief Sets the timer value
+ /**@brief Set timer new timeout value
   */
  void TimerSetValue(TimerEvent_t *obj, uint32_t value)
  {
+     if (obj == NULL)
+         return;
+ 
+     bool wasRunning = obj->IsRunning;
      TimerStop(obj);
      obj->ReloadValue = value;
+     if (wasRunning)
+         TimerStart(obj);
  }
  
- /*!
-  * \brief Computes elapsed time since a past timestamp
+ /**@brief Return the time elapsed since a fixed moment in time
   */
- TimerTime_t TimerGetElapsedTime(TimerTime_t past)
+ TimerTime_t TimerGetElapsedTime(TimerTime_t savedTime)
  {
-     TimerTime_t now = RtcGetTimerValue();
-     if (now >= past)
-     {
-         return now - past;
-     }
-     return 0; // Prevent underflow (optional, depends on use case)
+     uint32_t now = TimerGetCurrentTime();
+     return now - savedTime;
  }
  
- /*!
-  * \brief Gets the current time
+ /**@brief Read the current time elapsed since boot
   */
  TimerTime_t TimerGetCurrentTime(void)
  {
-     return RtcGetTimerValue();
+     uint32_t counter = __HAL_TIM_GET_COUNTER(&htim2);
+     uint32_t ms = (counter % 1000) + (tim2Overflows * 1000); // Handle overflows
+     return ms;
+ }
+ 
+ /**@brief Processes pending timer events
+  */
+ void TimerHandleEvents(void)
+ {
+     TimerEvent_t *cur = TimerListHead;
+     TimerEvent_t *prev = NULL;
+     uint32_t now = TimerGetCurrentTime();
+ 
+     while (cur != NULL)
+     {
+         if (cur->IsRunning && now >= cur->Timestamp)
+         {
+             void (*callback)(void) = cur->Callback;
+             if (cur->oneShot)
+             {
+                 TimerStop(cur);
+                 timerInUse[cur->timerNum] = false; // Free timer
+             }
+             else
+             {
+                 cur->Timestamp += cur->ReloadValue;
+                 // Re-sort if necessary
+                 TimerEvent_t *next = cur->Next;
+                 if (next != NULL && next->Timestamp < cur->Timestamp)
+                 {
+                     if (prev == NULL)
+                     {
+                         TimerListHead = next;
+                     }
+                     else
+                     {
+                         prev->Next = next;
+                     }
+                     TimerStart(cur);
+                     cur = TimerListHead;
+                     prev = NULL;
+                     continue;
+                 }
+             }
+             if (callback != NULL)
+             {
+                 callback();
+             }
+         }
+         prev = cur;
+         cur = cur->Next;
+     }
  }

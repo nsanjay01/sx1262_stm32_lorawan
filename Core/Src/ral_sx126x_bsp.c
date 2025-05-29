@@ -207,7 +207,7 @@ ral_status_t ral_sx126x_bsp_init( const ral_t* ral_context, radio_board_dio_irq_
     {
         return status;
     }
-    status = ( ral_status_t ) sx126x_set_standby( radio_context, SX126X_STANDBY_CFG_XOSC );
+    status = ( ral_status_t ) sx126x_set_standby( radio_context, SX126X_STANDBY_CFG_RC );
     if( status != RAL_STATUS_OK )
     {
         return status;
@@ -215,15 +215,15 @@ ral_status_t ral_sx126x_bsp_init( const ral_t* ral_context, radio_board_dio_irq_
 
     radio_board_set_operating_mode( RADIO_BOARD_OP_MODE_STDBY );
 
-    uint8_t trimming_cap_xta = 0;
-    uint8_t trimming_cap_xtb = 0;
-    ral_sx126x_bsp_get_trim_cap( radio_context, &trimming_cap_xta, &trimming_cap_xtb );
-    status = ( ral_status_t ) sx126x_set_trimming_capacitor_values( radio_context, trimming_cap_xta,
-                                                                    trimming_cap_xtb );
-    if( status != RAL_STATUS_OK )
-    {
-        return status;
-    }
+    // uint8_t trimming_cap_xta = 0;
+    // uint8_t trimming_cap_xtb = 0;
+    // ral_sx126x_bsp_get_trim_cap( radio_context, &trimming_cap_xta, &trimming_cap_xtb );
+    // status = ( ral_status_t ) sx126x_set_trimming_capacitor_values( radio_context, trimming_cap_xta,
+    //                                                                 trimming_cap_xtb );
+    // if( status != RAL_STATUS_OK )
+    // {
+    //     return status;
+    // }
 
     return ral_init( ral_context );
 }

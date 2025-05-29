@@ -11,10 +11,13 @@
  extern RTC_HandleTypeDef hrtc;
  extern TIM_HandleTypeDef htim2; // Using TIM2 for SysTimeGetMcuTime
  
- // Logging macro (replace with your logging system if available)
+ // External TIM2 overflow counter from timer.c
+ extern volatile uint32_t tim2Overflows;
+ 
+ // Logging macro
  #define SYS_LOG_ERROR(...) printf("[SYSTIME ERROR] " __VA_ARGS__)
  
- // Days per month (non-leap year, adjusted for leap years)
+ // Days per month (non-leap year)
  static const uint8_t DaysInMonth[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
  
  /*!
@@ -57,69 +60,69 @@
   * \brief Converts Unix timestamp to RTC date and time
   */
  static void UnixTimestampToRtc(uint32_t timestamp, RTC_DateTypeDef *date, RTC_TimeTypeDef *time)
-{
-    uint32_t days = timestamp / 86400;
-    uint32_t seconds = timestamp % 86400;
-
-    time->Hours = seconds / 3600;
-    seconds %= 3600;
-    time->Minutes = seconds / 60;
-    time->Seconds = seconds % 60;
-
-    uint16_t year = 1970;
-    while (days >= ((year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) ? 366 : 365))
-    {
-        days -= (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) ? 366 : 365;
-        year++;
-    }
-
-    date->Year = year - 2000; // RTC year offset from 2000
-
-    uint8_t month = 1;
-    while (days >= (month == 2 && (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) ? 29 : DaysInMonth[month - 1]))
-    {
-        days -= (month == 2 && (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) ? 29 : DaysInMonth[month - 1]);
-        month++;
-    }
-
-    date->Month = month;
-    date->Date = days + 1; // 1-based
-    date->WeekDay = (days + 4) % 7 + 1; // 1970-01-01 was Thursday (4), RTC weekday 1-7
-}
+ {
+     uint32_t days = timestamp / 86400;
+     uint32_t seconds = timestamp % 86400;
+ 
+     time->Hours = seconds / 3600;
+     seconds %= 3600;
+     time->Minutes = seconds / 60;
+     time->Seconds = seconds % 60;
+ 
+     uint16_t year = 1970;
+     while (days >= ((year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) ? 366 : 365))
+     {
+         days -= (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) ? 366 : 365;
+         year++;
+     }
+ 
+     date->Year = year - 2000; // RTC year offset from 2000
+ 
+     uint8_t month = 1;
+     while (days >= (month == 2 && (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) ? 29 : DaysInMonth[month - 1]))
+     {
+         days -= (month == 2 && (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) ? 29 : DaysInMonth[month - 1]);
+         month++;
+     }
+ 
+     date->Month = month;
+     date->Date = days + 1; // 1-based
+     date->WeekDay = (days + 4) % 7 + 1; // 1970-01-01 was Thursday (4), RTC weekday 1-7
+ }
  
  /*!
   * \brief Gets the current system time from RTC
   */
  SysTime_t SysTimeGet(void)
-{
-    SysTime_t sysTime = {0};
-    RTC_TimeTypeDef time;
-    RTC_DateTypeDef date;
-
-    if (HAL_RTC_GetTime(&hrtc, &time, RTC_FORMAT_BIN) != HAL_OK)
-    {
-        SYS_LOG_ERROR("Failed to get RTC time\n");
-        return sysTime;
-    }
-    if (HAL_RTC_GetDate(&hrtc, &date, RTC_FORMAT_BIN) != HAL_OK)
-    {
-        SYS_LOG_ERROR("Failed to get RTC date\n");
-        return sysTime;
-    }
-
-    sysTime.Seconds = RtcToUnixTimestamp(&date, &time);
-    // Fix division-by-zero
-    if (RTC_SMOOTHCALIB_PLUSPULSES_RESET != 0)
-    {
-        sysTime.SubSeconds = (1000 * (RTC_SMOOTHCALIB_PLUSPULSES_RESET - time.SubSeconds)) / RTC_SMOOTHCALIB_PLUSPULSES_RESET;
-    }
-    else
-    {
-        sysTime.SubSeconds = (1000 * (hrtc.Init.SynchPrediv + 1 - time.SubSeconds)) / (hrtc.Init.SynchPrediv + 1);  // e.g., 256
-    }
-
-    return sysTime;
-}
+ {
+     SysTime_t sysTime = {0};
+     RTC_TimeTypeDef time;
+     RTC_DateTypeDef date;
+ 
+     if (HAL_RTC_GetTime(&hrtc, &time, RTC_FORMAT_BIN) != HAL_OK)
+     {
+         SYS_LOG_ERROR("Failed to get RTC time\n");
+         return sysTime;
+     }
+     if (HAL_RTC_GetDate(&hrtc, &date, RTC_FORMAT_BIN) != HAL_OK)
+     {
+         SYS_LOG_ERROR("Failed to get RTC date\n");
+         return sysTime;
+     }
+ 
+     sysTime.Seconds = RtcToUnixTimestamp(&date, &time);
+     // Fix division-by-zero
+     if (RTC_SMOOTHCALIB_PLUSPULSES_RESET != 0)
+     {
+         sysTime.SubSeconds = (1000 * (RTC_SMOOTHCALIB_PLUSPULSES_RESET - time.SubSeconds)) / RTC_SMOOTHCALIB_PLUSPULSES_RESET;
+     }
+     else
+     {
+         sysTime.SubSeconds = (1000 * (hrtc.Init.SynchPrediv + 1 - time.SubSeconds)) / (hrtc.Init.SynchPrediv + 1); // e.g., 256
+     }
+ 
+     return sysTime;
+ }
  
  /*!
   * \brief Gets the current MCU time using TIM2
@@ -145,17 +148,10 @@
          lastRtcSeconds = rtcTime.Seconds;
      }
  
-     // Get TIM2 counter (assumes 1ms tick)
+     // Get TIM2 counter (1ms tick)
      uint32_t timerTicks = __HAL_TIM_GET_COUNTER(&htim2);
-     mcuTime.Seconds = timerBaseSeconds;
-     mcuTime.SubSeconds = timerTicks % 1000; // Milliseconds
- 
-     // Adjust seconds if timer has rolled over
-     if (timerTicks >= 1000)
-     {
-         mcuTime.Seconds += timerTicks / 1000;
-         mcuTime.SubSeconds = timerTicks % 1000;
-     }
+     mcuTime.Seconds = timerBaseSeconds + (timerTicks / 1000);
+     mcuTime.SubSeconds = (timerTicks % 1000) + (tim2Overflows * 1000) % 1000; // Handle overflows
  
      return mcuTime;
  }
@@ -228,23 +224,52 @@
  }
  
  /*!
-  * \brief Gets the seconds component of a SysTime_t
+  * \brief Converts SysTime_t to milliseconds
   */
- uint32_t SysTimeGetSeconds(SysTime_t sysTime)
+ TimerTime_t SysTimeToMs(SysTime_t sysTime)
  {
-     return sysTime.Seconds;
+     return (sysTime.Seconds * 1000) + sysTime.SubSeconds;
  }
  
  /*!
-  * \brief Gets the subseconds component of a SysTime_t
+  * \brief Converts milliseconds to SysTime_t
   */
- uint16_t SysTimeGetSubSeconds(SysTime_t sysTime)
+ SysTime_t SysTimeFromMs(TimerTime_t timeMs)
  {
-     return sysTime.SubSeconds;
+     SysTime_t sysTime = {0};
+     sysTime.Seconds = timeMs / 1000;
+     sysTime.SubSeconds = timeMs % 1000;
+     return sysTime;
  }
  
  /*!
-  * \brief Converts a Unix timestamp to broken-down local time
+  * \brief Converts a calendar time to Unix timestamp
+  */
+ uint32_t SysTimeMkTime(const struct tm* localtime)
+ {
+     if (localtime == NULL)
+     {
+         SYS_LOG_ERROR("Null localtime pointer in SysTimeMkTime\n");
+         return 0;
+     }
+ 
+     RTC_DateTypeDef date = {0};
+     RTC_TimeTypeDef time = {0};
+ 
+     date.Year = localtime->tm_year + 1900 - 2000; // tm_year is years since 1900
+     date.Month = localtime->tm_mon + 1;          // tm_mon is 0-based
+     date.Date = localtime->tm_mday;              // tm_mday is 1-based
+     date.WeekDay = localtime->tm_wday + 1;       // tm_wday is 0-based (0=Sunday)
+ 
+     time.Hours = localtime->tm_hour;
+     time.Minutes = localtime->tm_min;
+     time.Seconds = localtime->tm_sec;
+ 
+     return RtcToUnixTimestamp(&date, &time);
+ }
+ 
+ /*!
+  * \brief Converts Unix timestamp to calendar time
   */
  void SysTimeLocalTime(const uint32_t timestamp, struct tm *localtime)
  {
@@ -266,14 +291,6 @@
      localtime->tm_min = time.Minutes;
      localtime->tm_sec = time.Seconds;
      localtime->tm_wday = date.WeekDay - 1;         // tm_wday is 0-based (0=Sunday)
-     localtime->tm_yday = 0;                        // Not computed here
+     localtime->tm_yday = 0;                        // Not computed
      localtime->tm_isdst = -1;                      // No DST info
- }
- 
- /*!
-  * \brief Converts a SysTime_t to a Unix timestamp
-  */
- uint32_t SysTimeMktime(SysTime_t sysTime)
- {
-     return sysTime.Seconds;
  }
