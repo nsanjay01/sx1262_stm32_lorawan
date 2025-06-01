@@ -49,6 +49,9 @@ extern "C" {
 
 #include "LoRaMac.h"
 #include "LoRaMacHelper.h"
+#include "sx126x_regs.h"
+#include "sx126x-debug.h"
+
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -105,6 +108,7 @@ void Error_Handler(void);
 #define LORAWAN_APP_TX_DUTYCYCLE 10000 /**< Defines the application data transmission duty cycle. 10s, value in [ms]. */
 #define APP_TX_DUTYCYCLE_RND 1000	   /**< Defines a random delay for application data transmission duty cycle. 1s, value in [ms]. */
 #define JOINREQ_NBTRIALS 3			   /**< Number of trials for the join request. */
+
 
 
 /*!

@@ -280,29 +280,53 @@ int main(void)
   printf("=====================================\n");
 
   sx126x_hal_reset(NULL); // passing null as we don't need pin as it is directly defined.
-  // Initialize transmission periodicity variable
-  TxPeriodicity = APP_TX_DUTYCYCLE + randr( -APP_TX_DUTYCYCLE_RND, APP_TX_DUTYCYCLE_RND );
 
-  if ( LmHandlerInit( &LmHandlerCallbacks, &LmHandlerParams ) != LORAMAC_HANDLER_SUCCESS )
-      {
-          printf( "LoRaMac wasn't properly initialized\n" );
-          // Fatal error, endless loop.
-          while ( 1 )
-          {
-          }
-      }
-  // Set system maximum tolerated rx error in milliseconds
-  LmHandlerSetSystemMaxRxError(20);
-  // The LoRa-Alliance Compliance protocol package should always be
-    // initialized and activated.
-  LmHandlerPackageRegister( PACKAGE_ID_COMPLIANCE, &LmhpComplianceParams );
+  uint16_t readSyncWord = 0;
+  radio_context_t* radio_context = radio_board_get_radio_context_reference( );
+	sx126x_read_register(radio_context, SX126X_REG_LR_SYNCWORD,(uint8_t *) &readSyncWord, 2);
+	LOG_LIB("BRD", "SyncWord = %04X", readSyncWord);
 
-  LmHandlerJoin( );
 
-  StartTxProcess( LORAMAC_HANDLER_TX_ON_TIMER );
+  uint32_t err_code = timers_init();
+  if(err_code != 0)
+  {
+    printf("timers_init failed - %d\n", err_code);
+  }
 
-  
+  // Setup the EUIs and Keys
+	// use all these functions it is just using memcpy to copy from one array to another
+	lmh_setDevEui(nodeDeviceEUI);
+	lmh_setAppEui(nodeAppEUI);
+	lmh_setAppKey(nodeAppKey);
+	lmh_setNwkSKey(nodeNwsKey);
+	lmh_setAppSKey(nodeAppsKey);
+	lmh_setDevAddr(nodeDevAddr);
 
+  lmh_init_params_t lmh_params = {
+    .callbacks = &lora_callbacks,
+    .lora_param = lora_param_init,
+    .otaa = true,
+    .nodeClass = CLASS_A,
+    .user_region = LORAMAC_REGION_US915,
+    .region_change = false
+  };
+
+  // Initialize LoRaWan
+  // err_code = lmh_init(&lora_callbacks, lora_param_init, true, CLASS_A);
+  err_code = lmh_init(&lmh_params);
+  if(err_code != 0)
+  {
+    printf("lmh_init failed - %d\n", err_code);
+  }
+
+  if (!lmh_setSubBandChannels(1))
+	{
+		printf("lmh_setSubBandChannels failed. Wrong sub band requested?\n");
+	}
+
+
+  // Start Join procedure
+	lmh_join();
 
   /* USER CODE END 2 */
 
@@ -310,24 +334,9 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    // Processes the LoRaMac events
-    LmHandlerProcess( );
-
-    // Process application uplinks management
-    UplinkProcess( );
-
-    __disable_irq();
-        if( IsMacProcessPending == 1 )
-        {
-            // Clear flag and prevent MCU to go into low power modes.
-            IsMacProcessPending = 0;
-        }
-        else
-        {
-            // The MCU wakes up through events
-            // BoardLowPowerHandler( );
-        }
-        __enable_irq();
+    Radio.IrqProcess();
+    HAL_Delay(10000);
+    send_lora_frame();
   }
   /* USER CODE END 3 */
 }
@@ -710,225 +719,141 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   // }
 }
 
-
-static void OnMacProcessNotify( void )
+static void lorawan_join_failed_handler(void)
 {
-    IsMacProcessPending = 1;
+	printf("OVER_THE_AIR_ACTIVATION failed!\n");
+	printf("Check your EUI's and Keys's!\n");
+	printf("Check if a Gateway is in range!\n");
 }
 
-static void OnNvmDataChange( LmHandlerNvmContextStates_t state, uint16_t size )
+/**@brief LoRa function for handling HasJoined event.
+ */
+static void lorawan_has_joined_handler(void)
 {
-    DisplayNvmDataChange( state, size );
-}
-
-static void OnNetworkParametersChange( CommissioningParams_t* params )
-{
-    DisplayNetworkParametersUpdate( params );
-}
-
-static void OnMacMcpsRequest( LoRaMacStatus_t status, McpsReq_t *mcpsReq, TimerTime_t nextTxIn )
-{
-    DisplayMacMcpsRequestUpdate( status, mcpsReq, nextTxIn );
-}
-
-static void OnMacMlmeRequest( LoRaMacStatus_t status, MlmeReq_t *mlmeReq, TimerTime_t nextTxIn )
-{
-    DisplayMacMlmeRequestUpdate( status, mlmeReq, nextTxIn );
-}
-
-
-static void OnJoinRequest( LmHandlerJoinParams_t* params )
-{
-    DisplayJoinRequestUpdate( params );
-    if( params->Status == LORAMAC_HANDLER_ERROR )
-    {
-        LmHandlerJoin( );
-    }
-    else
-    {
-        LmHandlerRequestClass( LORAWAN_DEFAULT_CLASS );
-    }
-}
-
-static void OnTxData( LmHandlerTxParams_t* params )
-{
-    DisplayTxUpdate( params );
-}
-
-static void OnRxData( LmHandlerAppData_t* appData, LmHandlerRxParams_t* params )
-{
-    DisplayRxUpdate( appData, params );
-
-    switch( appData->Port )
-    {
-    case 1: // The application LED can be controlled on port 1 or 2
-    case LORAWAN_APP_PORT:
-        {
-            // AppLedStateOn = appData->Buffer[0] & 0x01;
-        }
-        break;
-    default:
-        break;
-    }
-
-    // Switch LED 2 ON for each received downlink
-    // GpioWrite( &Led2, 1 );
-    // TimerStart( &Led2Timer );
-}
-
-static void OnClassChange( DeviceClass_t deviceClass )
-{
-    DisplayClassUpdate( deviceClass );
-
-    // Inform the server as soon as possible that the end-device has switched to ClassB
-    LmHandlerAppData_t appData =
-    {
-        .Buffer = NULL,
-        .BufferSize = 0,
-        .Port = 0,
-    };
-    LmHandlerSend( &appData, LORAMAC_HANDLER_CONFIRMED_MSG );
-}
-
-static void OnBeaconStatusChange( LoRaMacHandlerBeaconParams_t* params )
-{
-    switch( params->State )
-    {
-        case LORAMAC_HANDLER_BEACON_RX:
-        {
-            // TimerStart( &LedBeaconTimer );
-            break;
-        }
-        case LORAMAC_HANDLER_BEACON_LOST:
-        case LORAMAC_HANDLER_BEACON_NRX:
-        {
-            // TimerStop( &LedBeaconTimer );
-            break;
-        }
-        default:
-        {
-            break;
-        }
-    }
-
-    DisplayBeaconUpdate( params );
-}
-
-#if( LMH_SYS_TIME_UPDATE_NEW_API == 1 )
-static void OnSysTimeUpdate( bool isSynchronized, int32_t timeCorrection )
-{
-
-}
+#if (OVER_THE_AIR_ACTIVATION != 0)
+	printf("Network Joined\n");
 #else
-static void OnSysTimeUpdate( void )
-{
+	printf("OVER_THE_AIR_ACTIVATION != 0\n");
 
-}
 #endif
+	lmh_class_request(CLASS_A);
 
+	TimerSetValue(&appTimer, LORAWAN_APP_TX_DUTYCYCLE);
+	TimerStart(&appTimer);
+}
 
-/*!
- * Prepares the payload of the frame and transmits it.
+/**@brief Function for handling LoRaWan received data from Gateway
+ *
+ * @param[app_data] app_data  Pointer to rx data
  */
-static void PrepareTxFrame( void )
+static void lorawan_rx_handler(lmh_app_data_t *app_data)
 {
-    if( LmHandlerIsBusy( ) == true )
-    {
-        return;
-    }
+	printf("LoRa Packet received on port %d, size:%d, rssi:%d, snr:%d\n",
+				  app_data->port, app_data->buffsize, app_data->rssi, app_data->snr);
 
-    uint8_t channel = 0;
+	switch (app_data->port)
+	{
+	case 3:
+		// Port 3 switches the class
+		if (app_data->buffsize == 1)
+		{
+			switch (app_data->buffer[0])
+			{
+			case 0:
+				lmh_class_request(CLASS_A);
+				break;
 
-    AppData.Port = LORAWAN_APP_PORT;
+			case 1:
+				lmh_class_request(CLASS_B);
+				break;
 
-    CayenneLppReset( );
-    CayenneLppAddDigitalInput( channel++, 1 );
-    CayenneLppAddAnalogInput( channel++, (3.1 ) * 100 / 254 );
+			case 2:
+				lmh_class_request(CLASS_C);
+				break;
 
-    CayenneLppCopy( AppData.Buffer );
-    AppData.BufferSize = CayenneLppGetSize( );
+			default:
+				break;
+			}
+		}
+		break;
 
-    if( LmHandlerSend( &AppData, LmHandlerParams.IsTxConfirmed ) == LORAMAC_HANDLER_SUCCESS )
-    {
-        // Switch LED 1 ON
-        // GpioWrite( &Led1, 1 );
-        // TimerStart( &Led1Timer );
-    }
+	case LORAWAN_APP_PORT:
+		// YOUR_JOB: Take action on received data
+		break;
+
+	default:
+		break;
+	}
 }
 
-static void StartTxProcess( LmHandlerTxEvents_t txEvent )
+static void lorawan_confirm_class_handler(DeviceClass_t Class)
 {
-    switch( txEvent )
-    {
-    default:
-        // Intentional fall through
-    case LORAMAC_HANDLER_TX_ON_TIMER:
-        {
-            // Schedule 1st packet transmission
-            TimerInit( &TxTimer, OnTxTimerEvent );
-            TimerSetValue( &TxTimer, TxPeriodicity );
-            OnTxTimerEvent( NULL );
-        }
-        break;
-    case LORAMAC_HANDLER_TX_ON_EVENT:
-        {
-        }
-        break;
-    }
-}
+	printf("switch to class %c done\n", "ABC"[Class]);
 
-
-static void UplinkProcess( void )
-{
-    uint8_t isPending = 0;
-    __disable_irq();
-    isPending = IsTxFramePending;
-    IsTxFramePending = 0;
-    __enable_irq();
-    if( isPending == 1 )
-    {
-        PrepareTxFrame( );
-    }
-}
-
-static void OnTxPeriodicityChanged( uint32_t periodicity )
-{
-    TxPeriodicity = periodicity;
-
-    if( TxPeriodicity == 0 )
-    { // Revert to application default periodicity
-        TxPeriodicity = APP_TX_DUTYCYCLE + randr( -APP_TX_DUTYCYCLE_RND, APP_TX_DUTYCYCLE_RND );
-    }
-
-    // Update timer periodicity
-    TimerStop( &TxTimer );
-    TimerSetValue( &TxTimer, TxPeriodicity );
-    TimerStart( &TxTimer );
-}
-
-static void OnTxFrameCtrlChanged( LmHandlerMsgTypes_t isTxConfirmed )
-{
-    LmHandlerParams.IsTxConfirmed = isTxConfirmed;
-}
-
-static void OnPingSlotPeriodicityChanged( uint8_t pingSlotPeriodicity )
-{
-    LmHandlerParams.PingSlotPeriodicity = pingSlotPeriodicity;
+	// Informs the server that switch has occurred ASAP
+	m_lora_app_data.buffsize = 0;
+	m_lora_app_data.port = LORAWAN_APP_PORT;
+	lmh_send(&m_lora_app_data, LMH_UNCONFIRMED_MSG);
 }
 
 
-/*!
- * Function executed on TxTimer event
+
+static void send_lora_frame(void)
+{
+	if (lmh_join_status_get() != LMH_SET)
+	{
+		//Not joined, try again later
+		printf("Did not join network, skip sending frame\n");
+		return;
+	}
+
+	uint32_t i = 0;
+	m_lora_app_data.port = LORAWAN_APP_PORT;
+	m_lora_app_data.buffer[i++] = 'H';
+	m_lora_app_data.buffer[i++] = 'e';
+	m_lora_app_data.buffer[i++] = 'l';
+	m_lora_app_data.buffer[i++] = 'l';
+	m_lora_app_data.buffer[i++] = 'o';
+	m_lora_app_data.buffer[i++] = ' ';
+	m_lora_app_data.buffer[i++] = 'w';
+	m_lora_app_data.buffer[i++] = 'o';
+	m_lora_app_data.buffer[i++] = 'r';
+	m_lora_app_data.buffer[i++] = 'l';
+	m_lora_app_data.buffer[i++] = 'd';
+	m_lora_app_data.buffer[i++] = '!';
+	m_lora_app_data.buffsize = i;
+
+	lmh_error_status error = lmh_send(&m_lora_app_data, LMH_UNCONFIRMED_MSG);
+	if (error == LMH_SUCCESS)
+	{
+	}
+	printf("lmh_send result %d\n", error);
+}
+
+
+
+
+/**@brief Function for handling a LoRa tx timer timeout event.
  */
-static void OnTxTimerEvent( void* context )
+static void tx_lora_periodic_handler(void)
 {
-    TimerStop( &TxTimer );
+	TimerSetValue(&appTimer, LORAWAN_APP_TX_DUTYCYCLE);
+	TimerStart(&appTimer);
+	printf("Sending frame\n");
+	send_lora_frame();
+}
 
-    IsTxFramePending = 1;
 
-    // Schedule next transmission
-    TimerSetValue( &TxTimer, TxPeriodicity );
-    TimerStart( &TxTimer );
+
+/**@brief Function for the Timer initialization.
+ *
+ * @details Initializes the timer module. This creates and starts application timers.
+ */
+static uint32_t timers_init(void)
+{
+	appTimer.timerNum = 3;
+	TimerInit(&appTimer, tx_lora_periodic_handler);
+	return 0;
 }
 
 /* USER CODE END 4 */
