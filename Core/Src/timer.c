@@ -42,20 +42,22 @@ Maintainer: Miguel Luis and Gregory Cristian
   */
  void TIM2_IRQHandler(void)
  {
-     HAL_TIM_IRQHandler(&htim2);
+     TimerIrqHandler(); // Call LoRaWAN-compatible handler
  }
  
- /**@brief TIM2 callback
+ /**@brief Timer interrupt handler for LoRaWAN
   */
- void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+ void TimerIrqHandler(void)
  {
-     if (htim->Instance == TIM2)
+     HAL_TIM_IRQHandler(&htim2); // Handle STM32 HAL interrupt
+     if (__HAL_TIM_GET_FLAG(&htim2, TIM_FLAG_UPDATE) != RESET)
      {
          tim2Overflows++; // Increment on overflow
          if (TimerListHead != NULL) // Optimize: skip if no timers
          {
-             TimerHandleEvents();
+             TimerHandleEvents(); // Process LoRaWAN timer events
          }
+         __HAL_TIM_CLEAR_FLAG(&htim2, TIM_FLAG_UPDATE); // Clear update flag
      }
  }
  
@@ -103,7 +105,9 @@ Maintainer: Miguel Luis and Gregory Cristian
      if (obj == NULL || obj->IsRunning)
          return;
  
-     __disable_irq();
+    //  __disable_irq();
+    uint32_t primask = __get_PRIMASK();
+    __disable_irq();
  
      obj->Timestamp = TimerGetCurrentTime() + obj->ReloadValue;
      obj->IsRunning = true;
@@ -129,7 +133,9 @@ Maintainer: Miguel Luis and Gregory Cristian
          prev->Next = obj;
      }
  
-     __enable_irq();
+    //  __enable_irq();
+    if (!primask)
+    __enable_irq();
  }
  
  /**@brief Stops and removes the timer object from the list of timer events
@@ -139,7 +145,9 @@ Maintainer: Miguel Luis and Gregory Cristian
      if (obj == NULL || !obj->IsRunning)
          return;
  
-     __disable_irq();
+    //  __disable_irq();
+    uint32_t primask = __get_PRIMASK();
+    __disable_irq();
  
      TimerEvent_t *cur = TimerListHead;
      TimerEvent_t *prev = NULL;
@@ -164,7 +172,10 @@ Maintainer: Miguel Luis and Gregory Cristian
          obj->Next = NULL;
      }
  
-     __enable_irq();
+    //  __enable_irq();
+    if (!primask)
+    __enable_irq();
+
  }
  
  /**@brief Resets the timer object

@@ -122,8 +122,14 @@ Maintainer: Miguel Luis and Gregory Cristian
  
  /**@brief Processes pending timer events
   *
-  * @details Called from TIM2 interrupt to handle timer expirations.
+  * @details Called from TimerIrqHandler to handle timer expirations.
   */
  void TimerHandleEvents(void);
+ 
+ /**@brief Timer interrupt handler for LoRaWAN
+  *
+  * @details Called from TIM2_IRQHandler to process timer interrupts.
+  */
+ void TimerIrqHandler(void);
  
  #endif // __TIMER_H__

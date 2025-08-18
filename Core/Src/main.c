@@ -18,18 +18,10 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "app_lorawan.h"
+#include "stm32_lpm.h"
 
 
-
-
-
-
-/*Main task implement systime.h and timer.h
- include radio.h and radio.c files*/
-
-
-// #include "utilities.h"
-// #include "region/RegionCommon.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -47,44 +39,6 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
-/*!
- * @brief Packet parameters for LoRa packets
- */
-// #ifndef LORA_PREAMBLE_LENGTH
-// #define LORA_PREAMBLE_LENGTH 8
-// #endif
-// #ifndef LORA_PKT_LEN_MODE
-// #define LORA_PKT_LEN_MODE SX126X_LORA_PKT_EXPLICIT
-// #endif
-// #ifndef LORA_IQ
-// #define LORA_IQ false
-// #endif
-// #ifndef LORA_CRC
-// #define LORA_CRC false
-// #endif
-// #define PAYLOAD_LENGTH 17
-
-// #define PACKET_TYPE SX126X_PKT_TYPE_LORA
-
-
-// /*!
-//  * @brief LoRa sync word
-//  */
-// #ifndef LORA_SYNCWORD_PRIVATE_NTW
-// #define LORA_SYNCWORD_PRIVATE_NTW   0x12 // 0x12 Private Network
-
-// #endif
-// #ifndef LORA_SYNCWORD_PUBLIC_NTW
-// #define LORA_SYNCWORD_PUBLIC_NTW    0x34 // 0x34 Public Network
-
-// #endif
-// #ifndef LORA_SYNCWORD
-// #define LORA_SYNCWORD LORA_SYNCWORD_PRIVATE_NTW
-// #endif
-
-
-
 /*!
  * Unique Devices IDs register set ( STM32L4xxx )
  */
@@ -101,35 +55,12 @@ SPI_HandleTypeDef hspi2;
 
 UART_HandleTypeDef huart2;
 
-sx126x_chip_status_t chip_status;
-
-sx126x_pa_cfg_params_t PaCfgParams;
-
 TIM_HandleTypeDef htim2;
 
 RTC_HandleTypeDef hrtc;
 
 
-/*!
- * User application data
- */
-// static uint8_t AppDataBuffer[LORAWAN_APP_DATA_BUFFER_MAX_SIZE];
 
-/*!
- * User application data structure
- */
-// static LmHandlerAppData_t AppData =
-// {
-//     .Buffer = AppDataBuffer,
-//     .BufferSize = 0,
-//     .Port = 0,
-// };
-
-
-/*!
- * Timer to handle the application data transmission duty cycle
- */
-static TimerEvent_t TxTimer;
 
 #define UID_BASE_ADDR 0x1FFF7A10
 void read_device_uid(uint8_t *uid) {
@@ -157,49 +88,10 @@ static void MX_SPI2_Init(void);
 static void MX_USART2_UART_Init(void);
 int _read(int file, char *ptr, int len);
 int _write(int file, char *ptr, int len);
-uint8_t compute_lora_ldro( const sx126x_lora_sf_t sf, const sx126x_lora_bw_t bw );
-void sx126x_received( void*, uint8_t*, uint8_t*, uint8_t );
+
 static HAL_StatusTypeDef MX_RTC_Init(void);
 static void MX_TIM2_Init(void);
-
-
-// Foward declaration
-static void lorawan_has_joined_handler(void);
-static void lorawan_rx_handler(lmh_app_data_t *app_data);
-static void lorawan_confirm_class_handler(DeviceClass_t Class);
-static void lorawan_join_failed_handler(void);
-static void send_lora_frame(void);
-static uint32_t timers_init(void);
-
-
-// APP_TIMER_DEF(lora_tx_timer_id);                                              ///< LoRa tranfer timer instance.
-TimerEvent_t appTimer;														  ///< LoRa tranfer timer instance.
-static uint8_t m_lora_app_data_buffer[LORAWAN_APP_DATA_BUFF_SIZE];			  ///< Lora user application data buffer.
-static lmh_app_data_t m_lora_app_data = {m_lora_app_data_buffer, 0, 0, 0, 0}; ///< Lora user application data structure.
-
-
-
-/**@brief Structure containing LoRaWan parameters, needed for lmh_init()
- */
-static lmh_param_t lora_param_init = {LORAWAN_ADR_ON, LORAWAN_DEFAULT_DATARATE, LORAWAN_PUBLIC_NETWORK, JOINREQ_NBTRIALS, LORAWAN_DEFAULT_TX_POWER, LORAWAN_DUTYCYCLE_OFF};
-
-/**@brief Structure containing LoRaWan callback functions, needed for lmh_init()
-*/
-static lmh_callback_t lora_callbacks = { read_device_uid, BoardGetRandomSeed,
-										lorawan_rx_handler, lorawan_has_joined_handler,
-										lorawan_confirm_class_handler, lorawan_join_failed_handler};
-
-uint8_t nodeDeviceEUI[8] = {0x00, 0x95, 0x64, 0x1F, 0xDA, 0x91, 0x19, 0x0B};
-
-uint8_t nodeAppEUI[8] = {0x70, 0xB3, 0xD5, 0x7E, 0xD0, 0x02, 0x01, 0xE1};
-
-uint8_t nodeAppKey[16] = {0x07, 0xC0, 0x82, 0x0C, 0x30, 0xB9, 0x08, 0x70, 0x0C, 0x0F, 0x70, 0x06, 0x00, 0xB0, 0xBE, 0x09};
-
-uint32_t nodeDevAddr = 0x260116F8;
-
-uint8_t nodeNwsKey[16] = {0x7E, 0xAC, 0xE2, 0x55, 0xB8, 0xA5, 0xE2, 0x69, 0x91, 0x51, 0x96, 0x06, 0x47, 0x56, 0x9D, 0x23};
-
-uint8_t nodeAppsKey[16] = {0xFB, 0xAC, 0xB6, 0x47, 0xF3, 0x58, 0x45, 0xC7, 0x50, 0x7D, 0xBF, 0x16, 0x8B, 0xA8, 0xC1, 0x7C};
+// void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
 
 
 /* USER CODE BEGIN PFP */
@@ -245,99 +137,8 @@ int main(void)
   MX_SPI2_Init();
   MX_USART2_UART_Init();
 
-  // // Retry RTC initialization
-  // for (int i = 0; i < 3; i++)
-  // {
-  //     if (MX_RTC_Init() == HAL_OK)
-  //     {
-  //         printf("RTC init succeeded on attempt %d!\n", i + 1);
-  //         break;
-  //     }
-  //     printf("RTC init attempt %d failed, retrying...\n", i + 1);
-  //     HAL_Delay(1000);
-  //     __HAL_RCC_BACKUPRESET_FORCE();
-  //     __HAL_RCC_BACKUPRESET_RELEASE();
-  // }
+  MX_LoRaWAN_Init();
 
-  /* USER CODE BEGIN 2 */
-
-  RTC_TimeTypeDef sTime ={0};
-  RTC_DateTypeDef sDate = {0};
-
-  
-  radio_context_t* context = radio_board_get_radio_context_reference();
-
-  context->spi = hspi2;
-  context->nss.GPIO_PORT = GPIOA;
-  context->nss.pin = NSS_PIN;
-  context->busy.GPIO_PORT = GPIOA;
-  context->busy.pin = BUSY_PIN;
-  context->reset.pin = RESET_PIN;
-  context->reset.GPIO_PORT = RESET_PIN_PORT;
-
-  printf("=====================================\n");
-  printf("SX126x LoRaWan test\n");
-  printf("=====================================\n");
-
-  sx126x_hal_reset(NULL); // passing null as we don't need pin as it is directly defined.
-
-  uint16_t readSyncWord = 0;
-  radio_context_t* radio_context = radio_board_get_radio_context_reference( );
-	sx126x_read_register(radio_context, SX126X_REG_LR_SYNCWORD,(uint8_t *) &readSyncWord, 2);
-	LOG_LIB("BRD", "SyncWord = %04X", readSyncWord);
-
-
-  uint32_t err_code = timers_init();
-  if(err_code != 0)
-  {
-    printf("timers_init failed - %d\n", err_code);
-  }
-
-  // Setup the EUIs and Keys
-	// use all these functions it is just using memcpy to copy from one array to another
-	lmh_setDevEui(nodeDeviceEUI);
-	lmh_setAppEui(nodeAppEUI);
-	lmh_setAppKey(nodeAppKey);
-	lmh_setNwkSKey(nodeNwsKey);
-	lmh_setAppSKey(nodeAppsKey);
-	lmh_setDevAddr(nodeDevAddr);
-
-  lmh_init_params_t lmh_params = {
-    .callbacks = &lora_callbacks,
-    .lora_param = lora_param_init,
-    .otaa = true,
-    .nodeClass = CLASS_A,
-    .user_region = LORAMAC_REGION_US915,
-    .region_change = false
-  };
-
-  // Initialize LoRaWan
-  // err_code = lmh_init(&lora_callbacks, lora_param_init, true, CLASS_A);
-  err_code = lmh_init(&lmh_params);
-  if(err_code != 0)
-  {
-    printf("lmh_init failed - %d\n", err_code);
-  }
-
-  if (!lmh_setSubBandChannels(1))
-	{
-		printf("lmh_setSubBandChannels failed. Wrong sub band requested?\n");
-	}
-
-
-  // Start Join procedure
-	lmh_join();
-
-  /* USER CODE END 2 */
-
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-    Radio.IrqProcess();
-    HAL_Delay(10000);
-    send_lora_frame();
-  }
   /* USER CODE END 3 */
 }
 
@@ -532,7 +333,7 @@ static void MX_SPI2_Init(void)
   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -687,193 +488,29 @@ int _read(int file, char *ptr, int len)
     ptr[i] = '\0'; // Null-terminate if max length reached
     return i;
 }
-
-
-
-
-/* EXTI Callback Function ----------------------------------------------------*/
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-  // if(GPIO_Pin == DIO1)
-  // {
-  //     sx126x_irq_mask_t irq_regs;
-  //   sx126x_get_and_clear_irq_status( &context, &irq_regs );
-
-  //  if( ( irq_regs & SX126X_IRQ_TX_DONE ) == SX126X_IRQ_TX_DONE )
-  //  {
-  //        printf("[IRQ] TX DONE;\n");
-  //        printf("[IRQ] Clearing the TX DONE IRQ\n");
-  //  }
-  //  else if (( irq_regs & SX126X_IRQ_TIMEOUT ) == SX126X_IRQ_TIMEOUT)
-  //  {
-  //         printf("[IRQ] TX TIMEOUT;\n");
-  //        printf("[IRQ] Clearing the TIMEOUT IRQ\n");
-  //  }
-  //  else if ((irq_regs & SX126X_IRQ_RX_DONE) == SX126X_IRQ_RX_DONE)
-  //  {
-  //     uint8_t buffer_rx[255];
-  //     uint8_t size;
-  //     sx126x_received( &context, buffer_rx, &size, 255 );
-
-  //  }
-  // }
-}
-
-static void lorawan_join_failed_handler(void)
-{
-	printf("OVER_THE_AIR_ACTIVATION failed!\n");
-	printf("Check your EUI's and Keys's!\n");
-	printf("Check if a Gateway is in range!\n");
-}
-
-/**@brief LoRa function for handling HasJoined event.
- */
-static void lorawan_has_joined_handler(void)
-{
-#if (OVER_THE_AIR_ACTIVATION != 0)
-	printf("Network Joined\n");
-#else
-	printf("OVER_THE_AIR_ACTIVATION != 0\n");
-
-#endif
-	lmh_class_request(CLASS_A);
-
-	TimerSetValue(&appTimer, LORAWAN_APP_TX_DUTYCYCLE);
-	TimerStart(&appTimer);
-}
-
-/**@brief Function for handling LoRaWan received data from Gateway
- *
- * @param[app_data] app_data  Pointer to rx data
- */
-static void lorawan_rx_handler(lmh_app_data_t *app_data)
-{
-	printf("LoRa Packet received on port %d, size:%d, rssi:%d, snr:%d\n",
-				  app_data->port, app_data->buffsize, app_data->rssi, app_data->snr);
-
-	switch (app_data->port)
-	{
-	case 3:
-		// Port 3 switches the class
-		if (app_data->buffsize == 1)
-		{
-			switch (app_data->buffer[0])
-			{
-			case 0:
-				lmh_class_request(CLASS_A);
-				break;
-
-			case 1:
-				lmh_class_request(CLASS_B);
-				break;
-
-			case 2:
-				lmh_class_request(CLASS_C);
-				break;
-
-			default:
-				break;
-			}
-		}
-		break;
-
-	case LORAWAN_APP_PORT:
-		// YOUR_JOB: Take action on received data
-		break;
-
-	default:
-		break;
-	}
-}
-
-static void lorawan_confirm_class_handler(DeviceClass_t Class)
-{
-	printf("switch to class %c done\n", "ABC"[Class]);
-
-	// Informs the server that switch has occurred ASAP
-	m_lora_app_data.buffsize = 0;
-	m_lora_app_data.port = LORAWAN_APP_PORT;
-	lmh_send(&m_lora_app_data, LMH_UNCONFIRMED_MSG);
-}
-
-
-
-static void send_lora_frame(void)
-{
-	if (lmh_join_status_get() != LMH_SET)
-	{
-		//Not joined, try again later
-		printf("Did not join network, skip sending frame\n");
-		return;
-	}
-
-	uint32_t i = 0;
-	m_lora_app_data.port = LORAWAN_APP_PORT;
-	m_lora_app_data.buffer[i++] = 'H';
-	m_lora_app_data.buffer[i++] = 'e';
-	m_lora_app_data.buffer[i++] = 'l';
-	m_lora_app_data.buffer[i++] = 'l';
-	m_lora_app_data.buffer[i++] = 'o';
-	m_lora_app_data.buffer[i++] = ' ';
-	m_lora_app_data.buffer[i++] = 'w';
-	m_lora_app_data.buffer[i++] = 'o';
-	m_lora_app_data.buffer[i++] = 'r';
-	m_lora_app_data.buffer[i++] = 'l';
-	m_lora_app_data.buffer[i++] = 'd';
-	m_lora_app_data.buffer[i++] = '!';
-	m_lora_app_data.buffsize = i;
-
-	lmh_error_status error = lmh_send(&m_lora_app_data, LMH_UNCONFIRMED_MSG);
-	if (error == LMH_SUCCESS)
-	{
-	}
-	printf("lmh_send result %d\n", error);
-}
-
-
-
-
-/**@brief Function for handling a LoRa tx timer timeout event.
- */
-static void tx_lora_periodic_handler(void)
-{
-	TimerSetValue(&appTimer, LORAWAN_APP_TX_DUTYCYCLE);
-	TimerStart(&appTimer);
-	printf("Sending frame\n");
-	send_lora_frame();
-}
-
-
-
-/**@brief Function for the Timer initialization.
- *
- * @details Initializes the timer module. This creates and starts application timers.
- */
-static uint32_t timers_init(void)
-{
-	appTimer.timerNum = 3;
-	TimerInit(&appTimer, tx_lora_periodic_handler);
-	return 0;
-}
-
 /* USER CODE END 4 */
 
 /**
   * @brief  This function is executed in case of error occurrence.
   * @retval None
   */
-void Error_Handler(void)
-{
-  /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
-  while (1)
-  {
-    printf("Error occurred! Continuing...\n");
-    HAL_Delay(1000);
-  }
-  /* USER CODE END Error_Handler_Debug */
-}
+ void Error_Handler(void)
+ {
+   /* USER CODE BEGIN Error_Handler_Debug */
+   printf("Error occurred! Entering safe loop...\n");
+ 
+   while (1)
+   {
+     HAL_Delay(1000);  // SysTick must be active
+     printf("Still in error state...\n");
+   }
+   /* USER CODE END Error_Handler_Debug */
+ }
+
+
+
+
+ 
 
 #ifdef  USE_FULL_ASSERT
 /**

@@ -28,30 +28,9 @@ extern "C" {
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_hal.h"
-#include "sx126x.h"
-#include "sx126x_hal.h"
 #include <stdio.h>
-#include "debug_utility.h"
 #include <string.h>
-#include "utilities.h"
-#include "RegionCommon.h"    /*Implement timer.h and systime.h in LoRaMac.h file in current stm32 files*/
-#include "Commissioning.h"
-// #include "LmHandler.h"        /*Implement timer.h and systime.h in LoRaMac.h file in current stm32 files*/
-// #include "LmhpCompliance.h"     /*Implement timer.h and systime.h in LoRaMac.h file in current stm32 files*/
-// #include "CayenneLpp.h"
-// #include "LmHandlerMsgDisplay.h"
-#include "Region.h"
-#include "RegionUS915.h"
-#include "radio.h"
-#include "timer.h"
-#include "systime.h"
 #include <stdint.h>
-
-#include "LoRaMac.h"
-#include "LoRaMacHelper.h"
-#include "sx126x_regs.h"
-#include "sx126x-debug.h"
-
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -102,23 +81,6 @@ void Error_Handler(void);
 #define RESET_PIN GPIO_PIN_3
 #define RESET_PIN_PORT GPIOA
 
-
-
-#define LORAWAN_APP_DATA_BUFF_SIZE 64  /**< Size of the data to be transmitted. */
-#define LORAWAN_APP_TX_DUTYCYCLE 10000 /**< Defines the application data transmission duty cycle. 10s, value in [ms]. */
-#define APP_TX_DUTYCYCLE_RND 1000	   /**< Defines a random delay for application data transmission duty cycle. 1s, value in [ms]. */
-#define JOINREQ_NBTRIALS 3			   /**< Number of trials for the join request. */
-
-
-
-/*!
- *
- */
-typedef enum
-{
-    LORAMAC_HANDLER_TX_ON_TIMER,
-    LORAMAC_HANDLER_TX_ON_EVENT,
-}LmHandlerTxEvents_t;
 
 
 
