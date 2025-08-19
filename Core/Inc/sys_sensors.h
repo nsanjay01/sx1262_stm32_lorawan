@@ -1,9 +1,9 @@
 /* USER CODE BEGIN Header */
 /**
   ******************************************************************************
-  * @file    platform.h
+  * @file    sys_sensors.h
   * @author  MCD Application Team
-  * @brief   Header for General HW instances configuration
+  * @brief   Header for sensors application
   ******************************************************************************
   * @attention
   *
@@ -20,35 +20,49 @@
 /* USER CODE END Header */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __PLATFORM_H__
-#define __PLATFORM_H__
+#ifndef __SENSORS_H__
+#define __SENSORS_H__
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+/* Includes ------------------------------------------------------------------*/
+
+/* USER CODE BEGIN Includes */
+
+/* USER CODE END Includes */
+
+/* Exported types ------------------------------------------------------------*/
+/**
+  * Sensor data parameters
+  */
+typedef struct
+{
+  float pressure;         /*!< in mbar */
+  float temperature;      /*!< in degC */
+  float humidity;         /*!< in % */
+  int32_t latitude;       /*!< latitude converted to binary */
+  int32_t longitude ;     /*!< longitude converted to binary */
+  int16_t altitudeGps;    /*!< in m */
+  int16_t altitudeBar ;   /*!< in m * 10 */
+  /**more may be added*/
+  /* USER CODE BEGIN sensor_t */
+
+  /* USER CODE END sensor_t */
+} sensor_t;
+
+/* USER CODE BEGIN ET */
+
+/* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
 
 /* USER CODE BEGIN EC */
-
+#if defined (SENSOR_ENABLED) && (SENSOR_ENABLED == 1) && defined (X_NUCLEO_IKS01A2)
+#define HTS221_0    0U
+#define LPS22HB_0   1U
+#endif /* SENSOR_ENABLED & X_NUCLEO_IKS01A2 */
 /* USER CODE END EC */
-
-/* Includes ------------------------------------------------------------------*/
-#include <stdbool.h>
-// #include "stm32l4xx.h"
-#include "stm32f4xx.h"
-#include "main.h"
-#include "stm32f4xx_nucleo.h"
-#include "nucleo_f4rr6e_bus.h"
-
-/* USER CODE BEGIN include */
-
-/* USER CODE END include */
-
-/* Exported types ------------------------------------------------------------*/
-/* USER CODE BEGIN ET */
-
-/* USER CODE END ET */
 
 /* External variables --------------------------------------------------------*/
 /* USER CODE BEGIN EV */
@@ -61,6 +75,17 @@ extern "C" {
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/
+/**
+  * @brief  initialize the environmental sensor
+  */
+int32_t EnvSensors_Init(void);
+
+/**
+  * @brief  Environmental sensor  read.
+  * @param  sensor_data sensor data
+  */
+int32_t EnvSensors_Read(sensor_t *sensor_data);
+
 /* USER CODE BEGIN EFP */
 
 /* USER CODE END EFP */
@@ -69,6 +94,5 @@ extern "C" {
 }
 #endif
 
-#endif /* __PLATFORM_H__ */
-
+#endif /* __SENSORS_H__ */
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

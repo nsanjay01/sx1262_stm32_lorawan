@@ -26,7 +26,7 @@
 #include "rtc_if.h"
 #include "stm32_lpm.h"
 #include "utilities_def.h"
-#include "stm32l4xx_ll_rtc.h"
+#include "stm32f4xx_ll_rtc.h"
 
 /* USER CODE BEGIN Includes */
 
@@ -68,6 +68,9 @@ typedef struct
 /* RTC Time base in us */
 #define USEC_NUMBER               1000000
 #define MSEC_NUMBER               (USEC_NUMBER/1000)
+
+#define RTC_N_PREDIV_S 8
+
 
 #define COMMON_FACTOR        3
 #define CONV_NUMER                (MSEC_NUMBER>>COMMON_FACTOR)

@@ -1,9 +1,9 @@
 /* USER CODE BEGIN Header */
 /**
   ******************************************************************************
-  * @file    platform.h
+  * @file    stm32_lpm_if.h
   * @author  MCD Application Team
-  * @brief   Header for General HW instances configuration
+  * @brief   Header for Low Power Manager interface configuration
   ******************************************************************************
   * @attention
   *
@@ -20,35 +20,29 @@
 /* USER CODE END Header */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __PLATFORM_H__
-#define __PLATFORM_H__
+#ifndef __STM32_LPM_IF_H__
+#define __STM32_LPM_IF_H__
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* Exported constants --------------------------------------------------------*/
-
-/* USER CODE BEGIN EC */
-
-/* USER CODE END EC */
-
 /* Includes ------------------------------------------------------------------*/
-#include <stdbool.h>
-// #include "stm32l4xx.h"
-#include "stm32f4xx.h"
-#include "main.h"
-#include "stm32f4xx_nucleo.h"
-#include "nucleo_f4rr6e_bus.h"
+#include "stm32_lpm.h"
 
-/* USER CODE BEGIN include */
+/* USER CODE BEGIN Includes */
 
-/* USER CODE END include */
+/* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
 
 /* USER CODE END ET */
+
+/* Exported constants --------------------------------------------------------*/
+/* USER CODE BEGIN EC */
+
+/* USER CODE END EC */
 
 /* External variables --------------------------------------------------------*/
 /* USER CODE BEGIN EV */
@@ -61,6 +55,40 @@ extern "C" {
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/
+/**
+  * @brief Enters Low Power Off Mode
+  */
+void PWR_EnterOffMode(void);
+
+/**
+  * @brief Exits Low Power Off Mode
+  */
+void PWR_ExitOffMode(void);
+
+/**
+  * @brief Enters Low Power Stop Mode
+  * @note ARM exists the function when waking up
+  */
+void PWR_EnterStopMode(void);
+
+/**
+  * @brief Exits Low Power Stop Mode
+  * @note Enable the pll at 32MHz
+  */
+void PWR_ExitStopMode(void);
+
+/**
+  * @brief Enters Low Power Sleep Mode
+  * @note ARM exits the function when waking up
+  */
+void PWR_EnterSleepMode(void);
+
+/**
+  * @brief Exits Low Power Sleep Mode
+  * @note ARM exits the function when waking up
+  */
+void PWR_ExitSleepMode(void);
+
 /* USER CODE BEGIN EFP */
 
 /* USER CODE END EFP */
@@ -69,6 +97,6 @@ extern "C" {
 }
 #endif
 
-#endif /* __PLATFORM_H__ */
+#endif /*__STM32_LPM_IF_H__ */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

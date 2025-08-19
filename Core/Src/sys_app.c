@@ -23,7 +23,7 @@
 #include <stdio.h>
 #include "platform.h"
 #include "sys_app.h"
-// #include "adc_if.h"
+#include "adc_if.h"
 #include "radio_board_if.h"
 #include "stm32_seq.h"
 #include "stm32_systime.h"
