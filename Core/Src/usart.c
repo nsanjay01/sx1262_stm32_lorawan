@@ -19,7 +19,6 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "usart.h"
-#include "dma.h"
 
 /* USER CODE BEGIN 0 */
 
@@ -28,13 +27,9 @@
 UART_HandleTypeDef huart2;
 DMA_HandleTypeDef hdma_usart2_tx;
 
-#define USART_BAUDRATE 115200
-
 /* USART2 init function */
-
 void MX_USART2_UART_Init(void)
 {
-
   /* USER CODE BEGIN USART2_Init 0 */
 
   /* USER CODE END USART2_Init 0 */
@@ -42,14 +37,14 @@ void MX_USART2_UART_Init(void)
   /* USER CODE BEGIN USART2_Init 1 */
 
   /* USER CODE END USART2_Init 1 */
-  huart2.Instance        = USART2;
-  huart2.Init.BaudRate   = USART_BAUDRATE;
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 115200; // Or your desired baud rate
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
-  huart2.Init.StopBits   = UART_STOPBITS_1;
-  huart2.Init.Parity     = UART_PARITY_NONE;
-  huart2.Init.Mode       = UART_MODE_TX;
-  huart2.Init.HwFlowCtl  = UART_HWCONTROL_NONE;
-
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX; // Changed to TX_RX as per your F4 init
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
   if (HAL_UART_Init(&huart2) != HAL_OK)
   {
     Error_Handler();
@@ -57,127 +52,96 @@ void MX_USART2_UART_Init(void)
   /* USER CODE BEGIN USART2_Init 2 */
 
   /* USER CODE END USART2_Init 2 */
-
 }
 
-void HAL_UART_MspInit(UART_HandleTypeDef *uartHandle)
-{
+// void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
+// {
+//   GPIO_InitTypeDef GPIO_InitStruct = {0};
+//   if(uartHandle->Instance==USART2)
+//   {
+//   /* USER CODE BEGIN USART2_MspInit 0 */
 
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
+//   /* USER CODE END USART2_MspInit 0 */
+//     /* Peripheral clock enable */
+//     __HAL_RCC_USART2_CLK_ENABLE();
+//     __HAL_RCC_GPIOA_CLK_ENABLE();
+    
+//     /**USART2 GPIO Configuration    
+//     PA2     ------> USART2_TX
+//     PA3     ------> USART2_RX 
+//     */
+//     GPIO_InitStruct.Pin = GPIO_PIN_2|GPIO_PIN_3;
+//     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+//     GPIO_InitStruct.Pull = GPIO_PULLUP; // NOPULL is also common
+//     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+//     GPIO_InitStruct.Alternate = GPIO_AF7_USART2; // Correct AF for STM32F4
+//     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  if (uartHandle->Instance == USART2)
-  {
-    /* USER CODE BEGIN USART2_MspInit 0 */
+//     /* USART2 DMA Init */
+//     /* USART2_TX Init */
+//     __HAL_RCC_DMA1_CLK_ENABLE(); // DMA1 is used for USART2 on STM32F4
 
-    /* USER CODE END USART2_MspInit 0 */
+//     hdma_usart2_tx.Instance = DMA1_Stream6; // F4 uses Streams
+//     hdma_usart2_tx.Init.Channel = DMA_CHANNEL_4; // F4 uses Channels, not Requests
+//     hdma_usart2_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
+//     hdma_usart2_tx.Init.PeriphInc = DMA_PINC_DISABLE;
+//     hdma_usart2_tx.Init.MemInc = DMA_MINC_ENABLE;
+//     hdma_usart2_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+//     hdma_usart2_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+//     hdma_usart2_tx.Init.Mode = DMA_NORMAL;
+//     hdma_usart2_tx.Init.Priority = DMA_PRIORITY_LOW;
+//     hdma_usart2_tx.Init.FIFOMode = DMA_FIFOMODE_DISABLE; // FIFO setting is specific to F4
+//     if (HAL_DMA_Init(&hdma_usart2_tx) != HAL_OK)
+//     {
+//       Error_Handler();
+//     }
 
-    /* Enable peripherals and GPIO Clocks */
-    /* Enable GPIO TX/RX clock */
-    USARTx_TX_GPIO_CLK_ENABLE();
-    USARTx_RX_GPIO_CLK_ENABLE();
+//     __HAL_LINKDMA(uartHandle,hdmatx,hdma_usart2_tx);
 
-    /* Enable USARTx clock */
-    __USART2_CLK_ENABLE();
+//     /* USART2 interrupt Init */
+//     HAL_NVIC_SetPriority(USART2_IRQn, 0, 0);
+//     HAL_NVIC_EnableIRQ(USART2_IRQn);
+    
+//     /* DMA interrupt init */
+//     /* DMA1_Stream6_IRQn interrupt configuration */
+//     HAL_NVIC_SetPriority(DMA1_Stream6_IRQn, 0, 0);
+//     HAL_NVIC_EnableIRQ(DMA1_Stream6_IRQn);
 
-    /* Enable DMA clock */
-    DMAx_CLK_ENABLE();
+//   /* USER CODE BEGIN USART2_MspInit 1 */
 
-    /* USART2 clock enable */
-    __HAL_RCC_USART2_CLK_ENABLE();
+//   /* USER CODE END USART2_MspInit 1 */
+//   }
+// }
 
-    /* Select SYSTEM clock for USART2 commuincation TX/RX */
-    PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_USART2;
-    PeriphClkInitStruct.Usart2ClockSelection = RCC_USART2CLKSOURCE_SYSCLK;
-    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
-    {
-      Error_Handler();
-    }
+// void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
+// {
+//   if(uartHandle->Instance==USART2)
+//   {
+//   /* USER CODE BEGIN USART2_MspDeInit 0 */
 
-    /**USART2 GPIO Configuration
-    PA3     ------> USART2_RX
-    PA2     ------> USART2_TX
-      */
-    GPIO_InitStruct.Pin = USARTx_TX_Pin;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
-    GPIO_InitStruct.Alternate = USARTx_TX_AF;
-    HAL_GPIO_Init(USARTx_TX_GPIO_Port, &GPIO_InitStruct);
+//   /* USER CODE END USART2_MspDeInit 0 */
+//     /* Peripheral clock disable */
+//     __HAL_RCC_USART2_CLK_DISABLE();
 
-    GPIO_InitStruct.Pin = USARTx_RX_Pin;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
-    GPIO_InitStruct.Alternate = USARTx_RX_AF;
-    HAL_GPIO_Init(USARTx_RX_GPIO_Port, &GPIO_InitStruct);
+//     /**USART2 GPIO Configuration    
+//     PA2     ------> USART2_TX
+//     PA3     ------> USART2_RX 
+//     */
+//     HAL_GPIO_DeInit(GPIOA, GPIO_PIN_2|GPIO_PIN_3);
 
-    /* USART2 DMA Init */
-    /* USART2_TX Init */
-    /* Configure the DMA handler for Transmission process */
-    hdma_usart2_tx.Instance                 = USARTx_TX_DMA_CHANNEL;
-    hdma_usart2_tx.Init.Request             = USARTx_TX_DMA_REQUEST;
-    hdma_usart2_tx.Init.Direction           = DMA_MEMORY_TO_PERIPH;
-    hdma_usart2_tx.Init.PeriphInc           = DMA_PINC_DISABLE;
-    hdma_usart2_tx.Init.MemInc              = DMA_MINC_ENABLE;
-    hdma_usart2_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-    hdma_usart2_tx.Init.MemDataAlignment    = DMA_MDATAALIGN_BYTE;
-    hdma_usart2_tx.Init.Mode                = DMA_NORMAL;
-    hdma_usart2_tx.Init.Priority            = DMA_PRIORITY_LOW;
+//     /* USART2 DMA DeInit */
+//     HAL_DMA_DeInit(uartHandle->hdmatx);
 
-    if (HAL_DMA_Init(&hdma_usart2_tx) != HAL_OK)
-    {
-      Error_Handler();
-    }
+//     /* USART2 interrupt Deinit */
+//     HAL_NVIC_DisableIRQ(USART2_IRQn);
+//     HAL_NVIC_DisableIRQ(DMA1_Stream6_IRQn); // Also disable the DMA stream IRQ
 
-    /* Associate the initialized DMA handle to the UART handle */
-    __HAL_LINKDMA(uartHandle, hdmatx, hdma_usart2_tx);
+//   /* USER CODE BEGIN USART2_MspDeInit 1 */
 
-    /* Configure the NVIC for DMA */
-    /* NVIC configuration for DMA transfer complete interrupt (USART1_TX) */
-    HAL_NVIC_SetPriority(USARTx_DMA_TX_IRQn, USARTx_Priority, 1);
-    HAL_NVIC_EnableIRQ(USARTx_DMA_TX_IRQn);
+//   /* USER CODE END USART2_MspDeInit 1 */
+//   }
+// }
 
-    /* NVIC for USART, to catch the TX complete */
-    HAL_NVIC_SetPriority(USARTx_IRQn, USARTx_DMA_Priority, 1);
-    HAL_NVIC_EnableIRQ(USARTx_IRQn);
-
-    /* USER CODE BEGIN USART2_MspInit 1 */
-
-    /* USER CODE END USART2_MspInit 1 */
-  }
-}
-
-void HAL_UART_MspDeInit(UART_HandleTypeDef *uartHandle)
-{
-
-  if (uartHandle->Instance == USART2)
-  {
-    /* USER CODE BEGIN USART2_MspDeInit 0 */
-
-    /* USER CODE END USART2_MspDeInit 0 */
-    /* Peripheral clock disable */
-    __HAL_RCC_USART2_CLK_DISABLE();
-
-    /**USART2 GPIO Configuration
-    PA3     ------> USART2_RX
-    PA2     ------> USART2_TX
-      */
-    HAL_GPIO_DeInit(GPIOA, USARTx_RX_Pin | USARTx_TX_Pin);
-
-    /* USART2 DMA DeInit */
-    HAL_DMA_DeInit(uartHandle->hdmatx);
-
-    /* USART2 interrupt Deinit */
-    HAL_NVIC_DisableIRQ(USART2_IRQn);
-    /* USER CODE BEGIN USART2_MspDeInit 1 */
-
-    /* USER CODE END USART2_MspDeInit 1 */
-  }
-}
-
-/* USER CODE BEGIN 1 */
+// /* USER CODE BEGIN 1 */
 
 /* USER CODE END 1 */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

@@ -42,18 +42,18 @@ extern "C" {
 #define RADIO_SPI_BAUDRATE                  10000000U /* 16M Sigfox, 10M Lora */
 
 /* Ticket https://intbugzilla.st.com/show_bug.cgi?id=54043 */
-#define BUS_SPI1_SCK_GPIO_PIN            GPIO_PIN_5
-#define BUS_SPI1_MISO_GPIO_PIN           GPIO_PIN_6
-#define BUS_SPI1_MOSI_GPIO_PIN           GPIO_PIN_7
-#define BUS_SPI1_SCK_GPIO_PORT           GPIOA
-#define BUS_SPI1_MISO_GPIO_PORT          GPIOA
-#define BUS_SPI1_MOSI_GPIO_PORT          GPIOA
-#define BUS_SPI1_SCK_GPIO_AF             GPIO_AF5_SPI1
-#define BUS_SPI1_MOSI_GPIO_AF            GPIO_AF5_SPI1
-#define BUS_SPI1_MISO_GPIO_AF            GPIO_AF5_SPI1
-#define BUS_SPI1_SCK_GPIO_CLK_ENABLE()   __HAL_RCC_GPIOA_CLK_ENABLE()
-#define BUS_SPI1_MOSI_GPIO_CLK_ENABLE()  __HAL_RCC_GPIOA_CLK_ENABLE()
-#define BUS_SPI1_MISO_GPIO_CLK_ENABLE()  __HAL_RCC_GPIOA_CLK_ENABLE()
+#define BUS_SPI2_SCK_GPIO_PIN            GPIO_PIN_10
+#define BUS_SPI2_MISO_GPIO_PIN           GPIO_PIN_2
+#define BUS_SPI2_MOSI_GPIO_PIN           GPIO_PIN_1
+#define BUS_SPI2_SCK_GPIO_PORT           GPIOB
+#define BUS_SPI2_MISO_GPIO_PORT          GPIOC
+#define BUS_SPI2_MOSI_GPIO_PORT          GPIOC
+#define BUS_SPI2_SCK_GPIO_AF             GPIO_AF5_SPI2
+#define BUS_SPI2_MOSI_GPIO_AF            GPIO_AF7_SPI2
+#define BUS_SPI2_MISO_GPIO_AF            GPIO_AF5_SPI2
+#define BUS_SPI2_SCK_GPIO_CLK_ENABLE()   __HAL_RCC_GPIOB_CLK_ENABLE()
+#define BUS_SPI2_MOSI_GPIO_CLK_ENABLE()  __HAL_RCC_GPIOC_CLK_ENABLE()
+#define BUS_SPI2_MISO_GPIO_CLK_ENABLE()  __HAL_RCC_GPIOC_CLK_ENABLE()
 
 #if (USE_HAL_I2C_REGISTER_CALLBACKS == 1)
 typedef struct
@@ -74,11 +74,11 @@ typedef struct
 /* Includes ------------------------------------------------------------------*/
 #include <stdint.h>
 /* BUS IO driver over SPI Peripheral */
-int32_t BSP_SPI1_Init(void);
-int32_t BSP_SPI1_DeInit(void);
-int32_t BSP_SPI1_Send(uint8_t *pData, uint16_t len);
-int32_t BSP_SPI1_Recv(uint8_t *pData, uint16_t len);
-int32_t BSP_SPI1_SendRecv(uint8_t *pTxData, uint8_t *pRxData, uint16_t len);
+int32_t BSP_SPI2_Init(void);
+int32_t BSP_SPI2_DeInit(void);
+int32_t BSP_SPI2_Send(uint8_t *pData, uint16_t len);
+int32_t BSP_SPI2_Recv(uint8_t *pData, uint16_t len);
+int32_t BSP_SPI2_SendRecv(uint8_t *pTxData, uint8_t *pRxData, uint16_t len);
 
 int32_t BSP_GetTick(void);
 

@@ -69,7 +69,7 @@ typedef struct
 #define USEC_NUMBER               1000000
 #define MSEC_NUMBER               (USEC_NUMBER/1000)
 
-#define RTC_N_PREDIV_S 8
+
 
 
 #define COMMON_FACTOR        3

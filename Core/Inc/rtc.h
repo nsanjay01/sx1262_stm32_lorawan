@@ -32,8 +32,7 @@ extern "C" {
 /* USER CODE END Includes */
 
 extern RTC_HandleTypeDef hrtc;
-#define RTC_PREDIV_A 127
-#define RTC_PREDIV_S 255
+
 
 /* USER CODE BEGIN Private defines */
 

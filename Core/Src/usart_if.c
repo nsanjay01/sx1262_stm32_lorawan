@@ -22,6 +22,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "usart_if.h"
 
+
 /* USER CODE BEGIN Includes */
 
 /* USER CODE END Includes */
@@ -78,6 +79,7 @@ const UTIL_ADV_TRACE_Driver_s UTIL_TraceDriver =
   * @return none
   */
 static void (*TxCpltCallback)(void *);
+
 /**
   * @brief  RX complete callback
   * @param  rxChar ptr of chars buffer sent by user
@@ -92,19 +94,19 @@ static void (*RxCpltCallback)(uint8_t *rxChar, uint16_t size, uint8_t error);
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
-
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Exported functions --------------------------------------------------------*/
-
 UTIL_ADV_TRACE_Status_t vcom_Init(void (*cb)(void *))
 {
   /* USER CODE BEGIN vcom_Init_1 */
 
   /* USER CODE END vcom_Init_1 */
   TxCpltCallback = cb;
+  // Note: MX_DMA_Init() is usually called once in main.c
+  // This call is kept for compatibility with the original example structure.
   MX_DMA_Init();
   MX_USART2_UART_Init();
   return UTIL_ADV_TRACE_OK;
@@ -127,8 +129,8 @@ UTIL_ADV_TRACE_Status_t vcom_DeInit(void)
 
   /* ##-3- Disable the NVIC for DMA ########################################### */
   /* USER CODE BEGIN 1 */
-  HAL_NVIC_DisableIRQ(DMA1_Channel7_IRQn);
-
+  // F4 Change: Use the correct DMA Stream IRQn for USART2_TX
+  HAL_NVIC_DisableIRQ(DMA1_Stream6_IRQn);
   return UTIL_ADV_TRACE_OK;
   /* USER CODE END 1 */
   /* USER CODE BEGIN vcom_DeInit_2 */
@@ -138,25 +140,15 @@ UTIL_ADV_TRACE_Status_t vcom_DeInit(void)
 
 void vcom_Trace(uint8_t *p_data, uint16_t size)
 {
-  /* USER CODE BEGIN vcom_Trace_1 */
-
-  /* USER CODE END vcom_Trace_1 */
+  /* This function does not need changes */
   HAL_UART_Transmit(&huart2, p_data, size, 1000);
-  /* USER CODE BEGIN vcom_Trace_2 */
-
-  /* USER CODE END vcom_Trace_2 */
 }
 
 UTIL_ADV_TRACE_Status_t vcom_Trace_DMA(uint8_t *p_data, uint16_t size)
 {
-  /* USER CODE BEGIN vcom_Trace_DMA_1 */
-
-  /* USER CODE END vcom_Trace_DMA_1 */
+  /* This function does not need changes */
   HAL_UART_Transmit_DMA(&huart2, p_data, size);
   return UTIL_ADV_TRACE_OK;
-  /* USER CODE BEGIN vcom_Trace_DMA_2 */
-
-  /* USER CODE END vcom_Trace_DMA_2 */
 }
 
 UTIL_ADV_TRACE_Status_t vcom_ReceiveInit(void (*RxCb)(uint8_t *rxChar, uint16_t size, uint8_t error))
@@ -164,30 +156,24 @@ UTIL_ADV_TRACE_Status_t vcom_ReceiveInit(void (*RxCb)(uint8_t *rxChar, uint16_t 
   /* USER CODE BEGIN vcom_ReceiveInit_1 */
 
   /* USER CODE END vcom_ReceiveInit_1 */
-  UART_WakeUpTypeDef WakeUpSelection;
 
-  /*record call back*/
+  /* Record the callback function */
   RxCpltCallback = RxCb;
 
-  /*Set wakeUp event on start bit*/
-  WakeUpSelection.WakeUpEvent = UART_WAKEUP_ON_STARTBIT;
+  /*
+   * The original function was designed to wake the MCU from Stop Mode.
+   * That feature is not available on the STM32F4 series.
+   * This revised version simply starts a continuous background reception
+   * using interrupts. The HAL_UART_RxCpltCallback will be called for
+   * each byte received, and it will automatically restart the reception.
+   */
 
-  HAL_UARTEx_StopModeWakeUpSourceConfig(&huart2, WakeUpSelection);
-
-  /* Make sure that no UART transfer is on-going */
-  while (__HAL_UART_GET_FLAG(&huart2, USART_ISR_BUSY) == SET);
-
-  /* Make sure that UART is ready to receive)   */
-  while (__HAL_UART_GET_FLAG(&huart2, USART_ISR_REACK) == RESET);
-
-  /* Enable USART interrupt */
-  __HAL_UART_ENABLE_IT(&huart2, UART_IT_WUF);
-
-  /*Enable wakeup from stop mode*/
-  HAL_UARTEx_EnableStopMode(&huart2);
-
-  /*Start LPUART receive on IT*/
-  HAL_UART_Receive_IT(&huart2, &charRx, 1);
+  /* Start UART reception in interrupt mode */
+  if(HAL_UART_Receive_IT(&huart2, &charRx, 1) != HAL_OK)
+  {
+    /* Reception start error */
+    Error_Handler();
+  }
 
   return UTIL_ADV_TRACE_OK;
   /* USER CODE BEGIN vcom_ReceiveInit_2 */
@@ -197,50 +183,39 @@ UTIL_ADV_TRACE_Status_t vcom_ReceiveInit(void (*RxCb)(uint8_t *rxChar, uint16_t 
 
 void vcom_Resume(void)
 {
-  /* USER CODE BEGIN vcom_Resume_1 */
-
-  /* USER CODE END vcom_Resume_1 */
+  /* This function does not need changes */
   /*to re-enable lost UART settings*/
   if (HAL_UART_Init(&huart2) != HAL_OK)
   {
     Error_Handler();
   }
-
   /*to re-enable lost DMA settings*/
   if (HAL_DMA_Init(&hdma_usart2_tx) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN vcom_Resume_2 */
-
-  /* USER CODE END vcom_Resume_2 */
 }
 
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart2)
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
-  /* USER CODE BEGIN HAL_UART_TxCpltCallback_1 */
-
-  /* USER CODE END HAL_UART_TxCpltCallback_1 */
-  /* buffer transmission complete*/
-  TxCpltCallback(NULL);
-  /* USER CODE BEGIN HAL_UART_TxCpltCallback_2 */
-
-  /* USER CODE END HAL_UART_TxCpltCallback_2 */
-}
-
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart2)
-{
-  /* USER CODE BEGIN HAL_UART_RxCpltCallback_1 */
-
-  /* USER CODE END HAL_UART_RxCpltCallback_1 */
-  if ((NULL != RxCpltCallback) && (HAL_UART_ERROR_NONE == huart2->ErrorCode))
+  /* This function does not need changes */
+  if(huart->Instance==USART2)
   {
-    RxCpltCallback(&charRx, 1, 0);
+    TxCpltCallback(NULL);
   }
-  HAL_UART_Receive_IT(huart2, &charRx, 1);
-  /* USER CODE BEGIN HAL_UART_RxCpltCallback_2 */
+}
 
-  /* USER CODE END HAL_UART_RxCpltCallback_2 */
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  /* This function does not need changes */
+  if(huart->Instance==USART2)
+  {
+    if ((NULL != RxCpltCallback) && (HAL_UART_ERROR_NONE == huart->ErrorCode))
+    {
+      RxCpltCallback(&charRx, 1, 0);
+    }
+    HAL_UART_Receive_IT(huart, &charRx, 1);
+  }
 }
 
 /* USER CODE BEGIN EF */
@@ -248,9 +223,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart2)
 /* USER CODE END EF */
 
 /* Private Functions Definition -----------------------------------------------*/
-
 /* USER CODE BEGIN PrFD */
 
 /* USER CODE END PrFD */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

@@ -108,7 +108,7 @@ void MX_RTC_Init(void)
 void HAL_RTC_MspInit(RTC_HandleTypeDef *rtcHandle)
 {
 
-  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+  // RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   if (rtcHandle->Instance == RTC)
   {
     /* USER CODE BEGIN RTC_MspInit 0 */
@@ -116,15 +116,15 @@ void HAL_RTC_MspInit(RTC_HandleTypeDef *rtcHandle)
     /* USER CODE END RTC_MspInit 0 */
     /** Initializes the peripherals clocks
       */
-    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSE;
-    RCC_OscInitStruct.LSEState = RCC_LSE_ON;
-    RCC_OscInitStruct.LSIState = RCC_LSI_OFF;
-    RCC_OscInitStruct.HSEState = RCC_HSE_OFF;
-    RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
-    if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-    {
-      Error_Handler();
-    }
+    // RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSE;
+    // RCC_OscInitStruct.LSEState = RCC_LSE_ON;
+    // RCC_OscInitStruct.LSIState = RCC_LSI_OFF;
+    // RCC_OscInitStruct.HSEState = RCC_HSE_OFF;
+    // RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+    // if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+    // {
+    //   Error_Handler();
+    // }
 
     /* RTC clock enable */
     __HAL_RCC_RTC_ENABLE();
