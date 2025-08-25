@@ -54,9 +54,9 @@ static uint32_t IsSPI1MspCbValid = 0;
   * @{
   */
 
-static void SPI2_MspInit(SPI_HandleTypeDef *spiHandle);
-static void SPI2_MspDeInit(SPI_HandleTypeDef *spiHandle);
-static uint32_t SPI_GetPrescaler(uint32_t clock_src_hz, uint32_t baudrate_mbps);
+// static void SPI2_MspInit(SPI_HandleTypeDef *spiHandle);
+// static void SPI2_MspDeInit(SPI_HandleTypeDef *spiHandle);
+// static uint32_t SPI_GetPrescaler(uint32_t clock_src_hz, uint32_t baudrate_mbps);
 
 /**
   * @}
@@ -82,23 +82,9 @@ int32_t BSP_SPI2_Init(void)
 {
   int32_t ret = BSP_ERROR_NONE;
 
-  hspi2.Instance  = SPI1;
-  if (HAL_SPI_GetState(&hspi1) == HAL_SPI_STATE_RESET)
+  hspi2.Instance  = SPI2;
+  if (HAL_SPI_GetState(&hspi2) == HAL_SPI_STATE_RESET)
   {
-#if (USE_HAL_SPI_REGISTER_CALLBACKS == 0)
-    /* Init the SPI Msp */
-    SPI2_MspInit(&hspi1);
-#else
-    if (IsSPI1MspCbValid == 0U)
-    {
-      if (BSP_SPI1_RegisterDefaultMspCallbacks() != BSP_ERROR_NONE)
-      {
-        return BSP_ERROR_MSP_FAILURE;
-      }
-    }
-#endif
-
-    /* Init the SPI */
     if (MX_SPI2_Init(&hspi1) != HAL_OK)
     {
       ret = BSP_ERROR_BUS_FAILURE;
@@ -115,18 +101,13 @@ int32_t BSP_SPI2_Init(void)
   */
 int32_t BSP_SPI2_DeInit(void)
 {
-  int32_t ret = BSP_ERROR_BUS_FAILURE;
-
-#if (USE_HAL_SPI_REGISTER_CALLBACKS == 0)
-  SPI2_MspDeInit(&hspi2);
-#endif
-
-  if (HAL_SPI_DeInit(&hspi2) == HAL_OK)
-  {
-    ret = BSP_ERROR_NONE;
-  }
-
-  return ret;
+   int32_t ret = BSP_ERROR_BUS_FAILURE;
+    // SPI2_MspDeInit(&hspi2); // <-- Commented out, handled in stm32f4xx_hal_msp.c
+    if (HAL_SPI_DeInit(&hspi2) == HAL_OK)
+    {
+        ret = BSP_ERROR_NONE;
+    }
+    return ret;
 }
 
 /**
@@ -185,19 +166,19 @@ int32_t BSP_SPI2_SendRecv(uint8_t *pTxData, uint8_t *pRxData, uint16_t len)
   * @brief Register Default BSP SPI1 Bus Msp Callbacks
   * @retval BSP status
   */
-int32_t BSP_SPI1_RegisterDefaultMspCallbacks(void)
+int32_t BSP_SPI2_RegisterDefaultMspCallbacks(void)
 {
 
   __HAL_SPI_RESET_HANDLE_STATE(&hspi1);
 
   /* Register MspInit Callback */
-  if (HAL_SPI_RegisterCallback(&hspi1, HAL_SPI_MSPINIT_CB_ID, SPI1_MspInit)  != HAL_OK)
+  if (HAL_SPI_RegisterCallback(&hspi1, HAL_SPI_MSPINIT_CB_ID, HAL_SPI_MspInit)  != HAL_OK)
   {
     return BSP_ERROR_PERIPH_FAILURE;
   }
 
   /* Register MspDeInit Callback */
-  if (HAL_SPI_RegisterCallback(&hspi1, HAL_SPI_MSPDEINIT_CB_ID, SPI1_MspDeInit) != HAL_OK)
+  if (HAL_SPI_RegisterCallback(&hspi2, HAL_SPI_MSPDEINIT_CB_ID, HAL_SPI_MspDeInit) != HAL_OK)
   {
     return BSP_ERROR_PERIPH_FAILURE;
   }
@@ -211,19 +192,19 @@ int32_t BSP_SPI1_RegisterDefaultMspCallbacks(void)
   * @param Callbacks     pointer to SPI1 MspInit/MspDeInit callback functions
   * @retval BSP status
   */
-int32_t BSP_SPI1_RegisterMspCallbacks(BSP_SPI_Cb_t *Callbacks)
+int32_t BSP_SPI2_RegisterMspCallbacks(BSP_SPI_Cb_t *Callbacks)
 {
   /* Prevent unused argument(s) compilation warning */
-  __HAL_SPI_RESET_HANDLE_STATE(&hspi1);
+  __HAL_SPI_RESET_HANDLE_STATE(&hspi2);
 
   /* Register MspInit Callback */
-  if (HAL_SPI_RegisterCallback(&hspi1, HAL_SPI_MSPINIT_CB_ID, Callbacks->pMspSpiInitCb)  != HAL_OK)
+  if (HAL_SPI_RegisterCallback(&hspi2, HAL_SPI_MSPINIT_CB_ID, Callbacks->pMspSpiInitCb)  != HAL_OK)
   {
     return BSP_ERROR_PERIPH_FAILURE;
   }
 
   /* Register MspDeInit Callback */
-  if (HAL_SPI_RegisterCallback(&hspi1, HAL_SPI_MSPDEINIT_CB_ID, Callbacks->pMspSpiDeInitCb) != HAL_OK)
+  if (HAL_SPI_RegisterCallback(&hspi2, HAL_SPI_MSPDEINIT_CB_ID, Callbacks->pMspSpiDeInitCb) != HAL_OK)
   {
     return BSP_ERROR_PERIPH_FAILURE;
   }
