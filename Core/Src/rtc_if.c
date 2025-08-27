@@ -352,10 +352,10 @@ void RTC_IF_DelayMs(uint32_t delay)
   * @param  RtcHandle: RTC handle
   * @retval None
   */
-void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *RtcHandle)
-{
-  UTIL_TIMER_IRQ_Handler();
-}
+// void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *RtcHandle)
+// {
+//   UTIL_TIMER_IRQ_Handler();
+// }
 
 uint32_t RTC_IF_GetTime(uint16_t *mSeconds)
 {

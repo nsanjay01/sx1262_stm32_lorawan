@@ -99,7 +99,7 @@ void SystemApp_Init(void)
   /* USER CODE END SystemApp_Init_1 */
 
   /* Ensure that MSI is wake-up system clock */
-  __HAL_RCC_WAKEUPSTOP_CLK_CONFIG(RCC_STOP_WAKEUPCLOCK_MSI);
+  // __HAL_RCC_WAKEUPSTOP_CLK_CONFIG(RCC_STOP_WAKEUPCLOCK_MSI);
 
   /*Initialize timer and RTC*/
   UTIL_TIMER_Init();
@@ -127,12 +127,12 @@ void SystemApp_Init(void)
   Sx_Board_IoInit();
 
   /*Initialize the Sensors */
-  EnvSensors_Init();
+  // EnvSensors_Init();
 
   /*Init low power manager*/
-  UTIL_LPM_Init();
+  // UTIL_LPM_Init();
   /* Disable Stand-by mode */
-  UTIL_LPM_SetOffMode((1 << CFG_LPM_APPLI_Id), UTIL_LPM_DISABLE);
+  // UTIL_LPM_SetOffMode((1 << CFG_LPM_APPLI_Id), UTIL_LPM_DISABLE);
 
 #if defined (LOW_POWER_DISABLE) && (LOW_POWER_DISABLE == 1)
   /* Disable Stop Mode */

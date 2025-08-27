@@ -19,7 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "app_lorawan.h"
-#include "stm32_lpm.h"
+
 
 
 /* Private includes ----------------------------------------------------------*/
@@ -39,42 +39,7 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-/*!
- * Unique Devices IDs register set ( STM32L4xxx )
- */
-#define         ID1                                 ( 0x1FFF7590 )
-#define         ID2                                 ( 0x1FFF7594 )
-#define         ID3                                 ( 0x1FFF7594 )
 
-
-
-/* USER CODE END PM */
-
-/* Private variables ---------------------------------------------------------*/
-SPI_HandleTypeDef hspi2;
-
-UART_HandleTypeDef huart2;
-
-TIM_HandleTypeDef htim2;
-
-RTC_HandleTypeDef hrtc;
-
-
-
-
-#define UID_BASE_ADDR 0x1FFF7A10
-void read_device_uid(uint8_t *uid) {
-  // Read 12 bytes from UID base address
-  for (int i = 0; i < 12; i++) {
-      uid[i] = *(volatile uint8_t *)(UID_BASE_ADDR + i);
-  }
-}
-
-
-uint32_t BoardGetRandomSeed( void )
-{
-    return ( ( *( uint32_t* )ID1 ) ^ ( *( uint32_t* )ID2 ) ^ ( *( uint32_t* )ID3 ) );
-}
 
 
 /* USER CODE BEGIN PV */
@@ -83,11 +48,7 @@ uint32_t BoardGetRandomSeed( void )
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-static void MX_GPIO_Init(void);
-// static void MX_SPI2_Init(void);
-// static void MX_USART2_UART_Init(void);
-int _read(int file, char *ptr, int len);
-int _write(int file, char *ptr, int len);
+
 
 // static HAL_StatusTypeDef MX_RTC_Init(void);
 // static void MX_TIM2_Init(void);
@@ -130,14 +91,12 @@ int main(void)
  
   /* USER CODE END SysInit */
 
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_RTC_Init();
-  MX_TIM2_Init();
-  MX_SPI2_Init();
-  MX_USART2_UART_Init();
 
   MX_LoRaWAN_Init();
+
+  while(1){
+    MX_LoRaWAN_Process();
+  }
 
   /* USER CODE END 3 */
 }
@@ -195,222 +154,6 @@ void SystemClock_Config(void)
   // __HAL_RCC_RTC_ENABLE();
 }
 
-
-
-/**
-  * @brief TIM2 Initialization Function
-  * @param None
-  * @retval None
-  */
-//  static void MX_TIM2_Init(void)
-// {
-//     TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-//     TIM_MasterConfigTypeDef sMasterConfig = {0};
-
-//     htim2.Instance = TIM2;
-//     htim2.Init.Prescaler = 83999; // 84 MHz / (83999 + 1) = 1 kHz
-//     htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-//     htim2.Init.Period = 0; // 1 ms interrupt
-//     htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-//     htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-//     if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
-//     {
-//         Error_Handler();
-//     }
-//     sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-//     if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
-//     {
-//         Error_Handler();
-//     }
-//     sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-//     sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-//     if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
-//     {
-//         Error_Handler();
-//     }
-// }
-
-
-
-/**
-  * @brief SPI2 Initialization Function
-  * @param None
-  * @retval None
-  */
-// static void MX_SPI2_Init(void)
-// {
-
-//   /* USER CODE BEGIN SPI2_Init 0 */
-
-//   /* USER CODE END SPI2_Init 0 */
-
-//   /* USER CODE BEGIN SPI2_Init 1 */
-
-//   /* USER CODE END SPI2_Init 1 */
-//   /* SPI2 parameter configuration*/
-//   hspi2.Instance = SPI2;
-//   hspi2.Init.Mode = SPI_MODE_MASTER;
-//   hspi2.Init.Direction = SPI_DIRECTION_2LINES;
-//   hspi2.Init.DataSize = SPI_DATASIZE_8BIT;
-//   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
-//   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
-//   hspi2.Init.NSS = SPI_NSS_SOFT;
-//   hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
-//   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
-//   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
-//   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-//   hspi2.Init.CRCPolynomial = 10;
-//   if (HAL_SPI_Init(&hspi2) != HAL_OK)
-//   {
-//     Error_Handler();
-//   }
-//   /* USER CODE BEGIN SPI2_Init 2 */
-
-//   /* USER CODE END SPI2_Init 2 */
-
-// }
-
-/**
-  * @brief USART2 Initialization Function
-  * @param None
-  * @retval None
-  */
-// static void MX_USART2_UART_Init(void)
-// {
-
-//   /* USER CODE BEGIN USART2_Init 0 */
-
-//   /* USER CODE END USART2_Init 0 */
-
-//   /* USER CODE BEGIN USART2_Init 1 */
-
-//   /* USER CODE END USART2_Init 1 */
-//   huart2.Instance = USART2;
-//   huart2.Init.BaudRate = 115200;
-//   huart2.Init.WordLength = UART_WORDLENGTH_8B;
-//   huart2.Init.StopBits = UART_STOPBITS_1;
-//   huart2.Init.Parity = UART_PARITY_NONE;
-//   huart2.Init.Mode = UART_MODE_TX_RX;
-//   huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-//   huart2.Init.OverSampling = UART_OVERSAMPLING_16;
-//   if (HAL_UART_Init(&huart2) != HAL_OK)
-//   {
-//     Error_Handler();
-//   }
-//   /* USER CODE BEGIN USART2_Init 2 */
-
-//   /* USER CODE END USART2_Init 2 */
-
-// }
-
-/**
-  * @brief GPIO Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_GPIO_Init(void)
-{
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-/* USER CODE BEGIN MX_GPIO_Init_1 */
-/* USER CODE END MX_GPIO_Init_1 */
-
-  /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOC_CLK_ENABLE();
-  __HAL_RCC_GPIOH_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
-
-  /*Configure GPIO pin Output Level */
-
- /* Configure GPIO pin : DIO1 (PC13) as interrupt */
-    GPIO_InitStruct.Pin = DIO1; // GPIO_PIN_13
-    GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING; // Falling edge (high to low)
-    GPIO_InitStruct.Pull = GPIO_NOPULL; // External pull-up exists on Nucleo
-    HAL_GPIO_Init(DIO1_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : LD2_Pin PA6 as NSS Pin */
-  GPIO_InitStruct.Pin = LD2_Pin|NSS_PIN;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : PA7 as Busy Pin*/
-  GPIO_InitStruct.Pin = BUSY_PIN;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-
-
-  /*Configure GPIO pins : RESET_PIN PA3 as RESET Pin */
-  GPIO_InitStruct.Pin = RESET_PIN;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(RESET_PIN_PORT, &GPIO_InitStruct);
-
-
-  HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_SET);
-  HAL_GPIO_WritePin(GPIOA, NSS_PIN, GPIO_PIN_SET);
-
-  /* Enable NVIC interrupt for EXTI15_10 (PC13 uses EXTI line 13) */
-    HAL_NVIC_SetPriority(EXTI15_10_IRQn, 1, 0); // Priority 1, sub-priority 0
-    HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
-
-
-
-/* USER CODE BEGIN MX_GPIO_Init_2 */
-/* USER CODE END MX_GPIO_Init_2 */
-}
-
-/* USER CODE BEGIN 4 */
-
-FILE __stdout;
-FILE __stdin;
-FILE __stderr;
-
-/* Called by C library console/file input
-* This function echoes the character received. * If the character is
-'\r', it is substituted by '\n'. */
-/* Function to send a character to USART2 */
-int _write(int file, char *ptr, int len) {
-    HAL_UART_Transmit(&huart2, (uint8_t *)ptr, len, 10);
-    return len;
-}
-
-
-int _read(int file, char *ptr, int len)
- {
-    int i = 0;
-    uint8_t ch;
-    while (i < len - 1) { // Leave space for null terminator
-        HAL_UART_Receive(&huart2, &ch, 1, HAL_MAX_DELAY); // Blocking read
-
-        // Echo back all characters (including Enter for visibility)
-        HAL_UART_Transmit(&huart2, &ch, 1, 1000);
-
-        // Stop on Enter, but don’t include it in the buffer
-        if (ch == '\r' || ch == '\n') {
-            ptr[i] = '\0'; // Null-terminate at current position
-            if (ch == '\r') {
-                // If \r, check for \n and consume it (common in terminals)
-                HAL_UART_Receive(&huart2, &ch, 1, 10); // Short timeout
-                if (ch == '\n') {
-                    HAL_UART_Transmit(&huart2, &ch, 1, 1000); // Echo \n
-                }
-            }
-            HAL_UART_Transmit(&huart2, (uint8_t *)"\r\n", 2, 1000); // Newline for terminal
-            return i; // Return number of actual chars (excluding \r\n)
-        }
-
-        ptr[i++] = ch; // Add character to buffer and increment
-    }
-
-    ptr[i] = '\0'; // Null-terminate if max length reached
-    return i;
-}
-/* USER CODE END 4 */
 
 /**
   * @brief  This function is executed in case of error occurrence.

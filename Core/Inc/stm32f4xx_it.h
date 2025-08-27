@@ -57,6 +57,10 @@ void PendSV_Handler(void);
 void SysTick_Handler(void);
 void SPI2_IRQHandler(void);
 void EXTI15_10_IRQHandler(void);
+void DMA1_Stream6_IRQHandler(void);
+void USART2_IRQHandler(void);
+void EXTI17_IRQHandler(void);
+void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc);
 /* USER CODE BEGIN EFP */
 
 /* USER CODE END EFP */

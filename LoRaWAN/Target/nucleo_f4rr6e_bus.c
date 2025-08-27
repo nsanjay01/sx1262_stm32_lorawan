@@ -24,6 +24,7 @@
 #include "nucleo_f4rr6e_bus.h"
 #include "nucleo_f4rr6e_errno.h"
 #include "stm32f4xx_hal.h"
+#include "stm32f4xx_hal_i2c.h"
 
 #define TIMEOUT_DURATION 1000
 /** @addtogroup BSP
@@ -85,7 +86,7 @@ int32_t BSP_SPI2_Init(void)
   hspi2.Instance  = SPI2;
   if (HAL_SPI_GetState(&hspi2) == HAL_SPI_STATE_RESET)
   {
-    if (MX_SPI2_Init(&hspi1) != HAL_OK)
+    if (MX_SPI2_Init(&hspi2) != HAL_OK)
     {
       ret = BSP_ERROR_BUS_FAILURE;
     }
@@ -708,13 +709,21 @@ int32_t BSP_I2C1_RegisterMspCallbacks(BSP_I2C_Cb_t *Callbacks)
 __weak HAL_StatusTypeDef MX_I2C1_Init(I2C_HandleTypeDef *hi2c)
 {
   HAL_StatusTypeDef ret = HAL_OK;
-  hi2c->Instance = I2C1;
-  hi2c->Init.Timing = 0x10909CEC;
+   hi2c->Instance = I2C1;
+  
+  // --- Replace these lines ---
+  // hi2c->Init.Timing = 0x10909CEC; // This is incorrect for STM32F4
+  // hi2c->Init.OwnAddress2Masks = I2C_OA2_NOMASK; // This is also incorrect
+
+  // --- With these lines ---
+  hi2c->Init.ClockSpeed = 100000; // Example: 100 KHz
+  hi2c->Init.DutyCycle = I2C_DUTYCYCLE_2; // Example duty cycle
+
+  // --- Keep the rest of the compatible members ---
   hi2c->Init.OwnAddress1 = 0;
   hi2c->Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c->Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
   hi2c->Init.OwnAddress2 = 0;
-  hi2c->Init.OwnAddress2Masks = I2C_OA2_NOMASK;
   hi2c->Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
   hi2c->Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
   if (HAL_I2C_Init(hi2c) != HAL_OK)

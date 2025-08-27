@@ -23,9 +23,13 @@
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __NUCLEO_F4RR6E_BUS_H
 #define __NUCLEO_F4RR6E_BUS_H
+#include "main.h"
 
 #include "stm32f4xx_nucleo_conf.h"
 #include "nucleo_f4rr6e_errno.h"
+#include "stm32f4xx_hal_i2c.h"
+#include "stm32f4xx_hal_i2c_ex.h"
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -129,7 +133,7 @@ typedef struct
   * @{
   */
 
-extern I2C_HandleTypeDef hi2c1;
+// extern I2C_HandleTypeDef hi2c1;
 
 /**
   * @}

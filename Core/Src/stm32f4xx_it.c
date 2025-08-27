@@ -21,6 +21,7 @@
 #include "main.h"
 #include "stm32f4xx_it.h"
 #include "radio.h"
+#include "timer.h"
 // #include "timer.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -59,6 +60,9 @@
 /* External variables --------------------------------------------------------*/
 extern SPI_HandleTypeDef hspi2;
 /* USER CODE BEGIN EV */
+extern UART_HandleTypeDef huart2; // 
+extern RTC_HandleTypeDef hrtc;
+
 
 /* USER CODE END EV */
 
@@ -149,7 +153,7 @@ void hard_fault_handler_c(uint32_t *stack_address)
     //                                                                             printf("CFSR = 0x%08lX\n", SCB->CFSR);
     //                                                                                 printf("MMFAR= 0x%08lX\n", SCB->MMFAR);
     //                                                                                     printf("BFAR = 0x%08lX\n", SCB->BFAR);
-
+     
                                                                                             while (1); // halt system
                                                                                             }
                                                                                             
@@ -280,6 +284,33 @@ void SPI2_IRQHandler(void)
 
   /* USER CODE END SPI2_IRQn 1 */
 }
+
+void DMA1_Stream6_IRQHandler(void)
+{
+  HAL_DMA_IRQHandler(huart2.hdmatx);
+}
+
+/**
+  * @brief This function handles USART2 global interrupt.
+  */
+void USART2_IRQHandler(void)
+{
+  HAL_UART_IRQHandler(&huart2);
+}
+
+void EXTI17_IRQHandler(void)
+{
+  HAL_RTC_AlarmIRQHandler(&hrtc); // 1. Call the generic HAL handler for the RTC alarm
+}
+/**
+  * @brief  Alarm A callback, which is called by the HAL handler above.
+  */
+void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc)
+{
+  UTIL_TIMER_IRQ_Handler(); // 2. Notify the LoRaWAN timer service
+}
+
+
 
 /* External Interrupt Handler for EXTI Line 10-15 */
 void EXTI15_10_IRQHandler(void)

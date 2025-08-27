@@ -27,6 +27,8 @@
 extern "C" {
 #endif
 
+#define SX1262DVK1DAS 1
+
 /* Includes ------------------------------------------------------------------*/
 #ifdef SX1276MB1LAS
 

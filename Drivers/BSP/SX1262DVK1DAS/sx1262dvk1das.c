@@ -48,6 +48,7 @@
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 #define BOARD_WAKEUP_TIME  5 // no TCXO
+#define SX1262DVK1DAS 1
 
 #ifndef SX1262DVK1DAS
 #error "please define SX1262DVK1DAS"
@@ -67,36 +68,36 @@ static void SX1262DVK1DAS_RADIO_SPI_IoDeInit(void);
 
 void SX1262DVK1DAS_RADIO_IoInit(void)
 {
-  GPIO_InitTypeDef initStruct = {0};
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
   SPI_HandleTypeDef dummy_hspi;
 
   /* DIO IO Init */
 
 //   Set DioIrqHandler port in IT_RISING mode
   RADIO_DIO_1_GPIO_CLK_ENABLE();
-  initStruct.Mode = GPIO_MODE_IT_RISING;
-  initStruct.Pull = GPIO_NOPULL;
-  initStruct.Speed = GPIO_SPEED_HIGH;
-  initStruct.Pin = RADIO_DIO_1_PIN;
-  HAL_GPIO_Init(RADIO_DIO_1_PORT, &initStruct);
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
+  GPIO_InitStruct.Pin = RADIO_DIO_1_PIN;
+  HAL_GPIO_Init(RADIO_DIO_1_PORT, &GPIO_InitStruct);
 
   /* Radio IO Init */
-  RADIO_DEV_SEL_CLK_ENABLE();
+  // RADIO_DEV_SEL_CLK_ENABLE();
   RADIO_BUSY_CLK_ENABLE();
-  initStruct.Mode = GPIO_MODE_INPUT;
-  initStruct.Pull = GPIO_NOPULL;
-  initStruct.Pin = DEVICE_SEL_PIN;
-  HAL_GPIO_Init(DEVICE_SEL_PORT, &initStruct);
-  initStruct.Pin = RADIO_BUSY_PIN;
-  HAL_GPIO_Init(RADIO_BUSY_PORT, &initStruct);
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  // GPIO_InitStruct.Pin = DEVICE_SEL_PIN;
+  // HAL_GPIO_Init(DEVICE_SEL_PORT, &GPIO_InitStruct);
+  GPIO_InitStruct.Pin = RADIO_BUSY_PIN;
+  HAL_GPIO_Init(RADIO_BUSY_PORT, &GPIO_InitStruct);
 
   /* Antenna IO Init */
-  RADIO_ANT_SWITCH_POWER_CLK_ENABLE();
-  initStruct.Pull = GPIO_NOPULL;
-  initStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  initStruct.Pin = RADIO_ANT_SWITCH_POWER_PIN;
-  HAL_GPIO_Init(RADIO_ANT_SWITCH_POWER_PORT, &initStruct);
-  HAL_GPIO_WritePin(RADIO_ANT_SWITCH_POWER_PORT, RADIO_ANT_SWITCH_POWER_PIN, GPIO_PIN_RESET);
+  // RADIO_ANT_SWITCH_POWER_CLK_ENABLE();
+  // GPIO_InitStruct.Pull = GPIO_NOPULL;
+  // GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  // GPIO_InitStruct.Pin = RADIO_ANT_SWITCH_POWER_PIN;
+  // HAL_GPIO_Init(RADIO_ANT_SWITCH_POWER_PORT, &GPIO_InitStruct);
+  // HAL_GPIO_WritePin(RADIO_ANT_SWITCH_POWER_PORT, RADIO_ANT_SWITCH_POWER_PIN, GPIO_PIN_RESET);
 
   /* SPI IO Init */
   /* Normally done by the HAL_MSP callback but not for this applic */
@@ -104,10 +105,11 @@ void SX1262DVK1DAS_RADIO_IoInit(void)
 
   /* NSS initialization */
   RADIO_NSS_CLK_ENABLE();
-  initStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  initStruct.Pull = GPIO_NOPULL;
-  initStruct.Pin = RADIO_NSS_PIN;
-  HAL_GPIO_Init(RADIO_NSS_PORT,  &initStruct);
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pin = RADIO_NSS_PIN;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(RADIO_NSS_PORT,  &GPIO_InitStruct);
   HAL_GPIO_WritePin(RADIO_NSS_PORT, RADIO_NSS_PIN,  GPIO_PIN_SET);
 }
 
@@ -147,28 +149,28 @@ uint32_t SX1262DVK1DAS_RADIO_GetWakeUpTime(void)
 
 void SX1262DVK1DAS_RADIO_Reset(void)
 {
-  GPIO_InitTypeDef initStruct = { 0 };
+  GPIO_InitTypeDef GPIO_InitStruct = { 0 };
 
   RADIO_RESET_CLK_ENABLE();
 
-  initStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  initStruct.Pull = GPIO_NOPULL;
-  initStruct.Speed = GPIO_SPEED_HIGH;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
 
   // Wait 10 ms
   HAL_Delay(10);
 
   // Set RESET pin to 0
-  initStruct.Pin = RADIO_RESET_PIN;
-  HAL_GPIO_Init(RADIO_RESET_PORT, &initStruct);
+  GPIO_InitStruct.Pin = RADIO_RESET_PIN;
+  HAL_GPIO_Init(RADIO_RESET_PORT, &GPIO_InitStruct);
   HAL_GPIO_WritePin(RADIO_RESET_PORT, RADIO_RESET_PIN, GPIO_PIN_RESET);
 
   // Wait 20 ms
   HAL_Delay(20);
   // Configure RESET as input
-  initStruct.Mode = GPIO_MODE_ANALOG;
-  initStruct.Pin = RADIO_RESET_PIN;
-  HAL_GPIO_Init(RADIO_RESET_PORT, &initStruct);
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pin = RADIO_RESET_PIN;
+  HAL_GPIO_Init(RADIO_RESET_PORT, &GPIO_InitStruct);
   HAL_GPIO_WritePin(RADIO_RESET_PORT, RADIO_RESET_PIN, GPIO_PIN_RESET);  // internal pull-up
 
   // Wait 10 ms
@@ -209,14 +211,15 @@ void SX1262DVK1DAS_RADIO_ChipSelect(int32_t state)
 
 uint8_t SX1262DVK1DAS_RADIO_GetPaSelect(uint32_t channel)
 {
-  if (HAL_GPIO_ReadPin(DEVICE_SEL_PORT, DEVICE_SEL_PIN) ==  GPIO_PIN_SET)
-  {
-    return SX1261;
-  }
-  else
-  {
-    return SX1262;
-  }
+  // if (HAL_GPIO_ReadPin(DEVICE_SEL_PORT, DEVICE_SEL_PIN) ==  GPIO_PIN_SET)
+  // {
+  //   return SX1261;
+  // }
+  // else
+  // {
+  //   return SX1262;
+  // }
+  return SX1262;
 }
 
 void SX1262DVK1DAS_RADIO_SetAntSw(RfSw_TypeDef state)
@@ -306,33 +309,33 @@ uint16_t SX1262DVK1DAS_RADIO_SendRecv(uint16_t txData)
 */
 static void SX1262DVK1DAS_RADIO_SPI_IoInit(SPI_HandleTypeDef *spiHandle)
 {
-  GPIO_InitTypeDef GPIO_InitStruct;
-  /* USER CODE BEGIN SPI1_MspInit 0 */
+  // GPIO_InitTypeDef GPIO_InitStruct;
+  // /* USER CODE BEGIN SPI1_MspInit 0 */
 
-  /* USER CODE END SPI1_MspInit 0 */
-  /* Enable Peripheral clock */
-  RADIO_SPI_SCK_GPIO_CLK_ENABLE();
-  RADIO_SPI_MOSI_GPIO_CLK_ENABLE();
-  RADIO_SPI_MISO_GPIO_CLK_ENABLE();
+  // /* USER CODE END SPI1_MspInit 0 */
+  // /* Enable Peripheral clock */
+  // RADIO_SPI_SCK_GPIO_CLK_ENABLE();
+  // RADIO_SPI_MOSI_GPIO_CLK_ENABLE();
+  // RADIO_SPI_MISO_GPIO_CLK_ENABLE();
 
-  /**SPI1 GPIO Configuration
-  PA5     ------> SPI1_SCK
-  PA6     ------> SPI1_MISO
-  PA7     ------> SPI1_MOSI
-    */
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  // /**SPI1 GPIO Configuration
+  // PA5     ------> SPI1_SCK
+  // PA6     ------> SPI1_MISO
+  // PA7     ------> SPI1_MOSI
+  //   */
+  // GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  // GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  // GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
 
-  GPIO_InitStruct.Alternate = RADIO_SPI_MOSI_GPIO_AF;
-  GPIO_InitStruct.Pin = RADIO_SPI_MOSI_GPIO_PIN;
-  HAL_GPIO_Init(RADIO_SPI_MOSI_GPIO_PORT, &GPIO_InitStruct);
-  GPIO_InitStruct.Alternate = RADIO_SPI_MISO_GPIO_AF;
-  GPIO_InitStruct.Pin = RADIO_SPI_MISO_GPIO_PIN;
-  HAL_GPIO_Init(RADIO_SPI_MISO_GPIO_PORT, &GPIO_InitStruct);
-  GPIO_InitStruct.Alternate = RADIO_SPI_SCK_GPIO_AF;
-  GPIO_InitStruct.Pin = RADIO_SPI_SCK_GPIO_PIN;
-  HAL_GPIO_Init(RADIO_SPI_SCK_GPIO_PORT, &GPIO_InitStruct);
+  // GPIO_InitStruct.Alternate = RADIO_SPI_MOSI_GPIO_AF;
+  // GPIO_InitStruct.Pin = RADIO_SPI_MOSI_GPIO_PIN;
+  // HAL_GPIO_Init(RADIO_SPI_MOSI_GPIO_PORT, &GPIO_InitStruct);
+  // GPIO_InitStruct.Alternate = RADIO_SPI_MISO_GPIO_AF;
+  // GPIO_InitStruct.Pin = RADIO_SPI_MISO_GPIO_PIN;
+  // HAL_GPIO_Init(RADIO_SPI_MISO_GPIO_PORT, &GPIO_InitStruct);
+  // GPIO_InitStruct.Alternate = RADIO_SPI_SCK_GPIO_AF;
+  // GPIO_InitStruct.Pin = RADIO_SPI_SCK_GPIO_PIN;
+  // HAL_GPIO_Init(RADIO_SPI_SCK_GPIO_PORT, &GPIO_InitStruct);
 }
 
 /**
@@ -351,18 +354,18 @@ static void SX1262DVK1DAS_RADIO_SPI_IoDeInit(void)
   /* Instead of using HAL_GPIO_DeInit() which set ANALOG mode
      it's preferred to set in OUTPUT_PP mode, with the pins set to 0 */
 
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-  GPIO_InitStruct.Pin = RADIO_SPI_MOSI_GPIO_PIN;
-  HAL_GPIO_Init(RADIO_SPI_MOSI_GPIO_PORT, &GPIO_InitStruct);
-  GPIO_InitStruct.Pin = RADIO_SPI_MISO_GPIO_PIN;
-  HAL_GPIO_Init(RADIO_SPI_MISO_GPIO_PORT, &GPIO_InitStruct);
-  GPIO_InitStruct.Pin = RADIO_SPI_SCK_GPIO_PIN;
-  HAL_GPIO_Init(RADIO_SPI_SCK_GPIO_PORT, &GPIO_InitStruct);
+  // GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  // GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  // GPIO_InitStruct.Pin = RADIO_SPI_MOSI_GPIO_PIN;
+  // HAL_GPIO_Init(RADIO_SPI_MOSI_GPIO_PORT, &GPIO_InitStruct);
+  // GPIO_InitStruct.Pin = RADIO_SPI_MISO_GPIO_PIN;
+  // HAL_GPIO_Init(RADIO_SPI_MISO_GPIO_PORT, &GPIO_InitStruct);
+  // GPIO_InitStruct.Pin = RADIO_SPI_SCK_GPIO_PIN;
+  // HAL_GPIO_Init(RADIO_SPI_SCK_GPIO_PORT, &GPIO_InitStruct);
 
 
-  HAL_GPIO_WritePin(RADIO_SPI_MOSI_GPIO_PORT, RADIO_SPI_MOSI_GPIO_PIN, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(RADIO_SPI_MISO_GPIO_PORT, RADIO_SPI_MISO_GPIO_PIN, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(RADIO_SPI_SCK_GPIO_PORT, RADIO_SPI_SCK_GPIO_PIN, GPIO_PIN_RESET);
+  // HAL_GPIO_WritePin(RADIO_SPI_MOSI_GPIO_PORT, RADIO_SPI_MOSI_GPIO_PIN, GPIO_PIN_RESET);
+  // HAL_GPIO_WritePin(RADIO_SPI_MISO_GPIO_PORT, RADIO_SPI_MISO_GPIO_PIN, GPIO_PIN_RESET);
+  // HAL_GPIO_WritePin(RADIO_SPI_SCK_GPIO_PORT, RADIO_SPI_SCK_GPIO_PIN, GPIO_PIN_RESET);
 }
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

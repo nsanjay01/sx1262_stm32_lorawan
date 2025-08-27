@@ -20,6 +20,7 @@
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
+#include "main.h"
 #include "platform.h"
 #include "Region.h" /* Needed for LORAWAN_DEFAULT_DATA_RATE */
 #include "sys_app.h"
@@ -221,9 +222,9 @@ void LoRaWAN_Init(void)
 {
   /* USER CODE BEGIN LoRaWAN_Init_1 */
 
-  LED_Init(LED_BLUE);
-  LED_Init(LED_RED1);
-  LED_Init(LED_RED2);
+  // LED_Init(LED_BLUE);
+  // LED_Init(LED_RED1);
+  // LED_Init(LED_RED2);
 
   /* Get LoRa APP version*/
   APP_LOG(TS_OFF, VLEVEL_M, "APP_VERSION:        V%X.%X.%X\r\n",
@@ -231,7 +232,7 @@ void LoRaWAN_Init(void)
           (uint8_t)(__LORA_APP_VERSION >> __APP_VERSION_SUB1_SHIFT),
           (uint8_t)(__LORA_APP_VERSION >> __APP_VERSION_SUB2_SHIFT));
 
-  /* Get MW LoraWAN info */
+  // /* Get MW LoraWAN info */
   APP_LOG(TS_OFF, VLEVEL_M, "MW_LORAWAN_VERSION: V%X.%X.%X\r\n",
           (uint8_t)(__LORAWAN_VERSION >> __APP_VERSION_MAIN_SHIFT),
           (uint8_t)(__LORAWAN_VERSION >> __APP_VERSION_SUB1_SHIFT),

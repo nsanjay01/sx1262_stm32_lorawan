@@ -23,59 +23,65 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include "platform.h"
+// #include "Core/Inc/platform.h"
+#include <stdbool.h>
+// #include "stm32l4xx.h"
+#include "stm32f4xx.h"
+#include "main.h"
+#include "stm32f4xx_nucleo.h"
+#include "nucleo_f4rr6e_bus.h"
 
 /* Daughter board Pin mapping --------------------------------------------*/
 
 /*  SPI MACRO redefinition */
-#define RADIO_SPI_Init                            BSP_SPI1_Init
-#define RADIO_SPI_DeInit                          BSP_SPI1_DeInit
-#define RADIO_SPI_SendRecv                        BSP_SPI1_SendRecv
+#define RADIO_SPI_Init                            BSP_SPI2_Init
+#define RADIO_SPI_DeInit                          BSP_SPI2_DeInit
+#define RADIO_SPI_SendRecv                        BSP_SPI2_SendRecv
 
-#define RADIO_SPI_CLK_ENABLE()                    __HAL_RCC_SPI1_CLK_ENABLE()
+#define RADIO_SPI_CLK_ENABLE()                    __HAL_RCC_SPI2_CLK_ENABLE()
 
 /* SPIx Bus Pin mapping */
-#define RADIO_SPI_SCK_GPIO_PIN           BUS_SPI1_SCK_GPIO_PIN
-#define RADIO_SPI_MISO_GPIO_PIN          BUS_SPI1_MISO_GPIO_PIN
-#define RADIO_SPI_MOSI_GPIO_PIN          BUS_SPI1_MOSI_GPIO_PIN
-#define RADIO_SPI_SCK_GPIO_PORT          BUS_SPI1_SCK_GPIO_PORT
-#define RADIO_SPI_MISO_GPIO_PORT         BUS_SPI1_MISO_GPIO_PORT
-#define RADIO_SPI_MOSI_GPIO_PORT         BUS_SPI1_MOSI_GPIO_PORT
-#define RADIO_SPI_SCK_GPIO_AF            BUS_SPI1_SCK_GPIO_AF
-#define RADIO_SPI_MOSI_GPIO_AF           BUS_SPI1_MOSI_GPIO_AF
-#define RADIO_SPI_MISO_GPIO_AF           BUS_SPI1_MISO_GPIO_AF
-#define RADIO_SPI_SCK_GPIO_CLK_ENABLE()  BUS_SPI1_SCK_GPIO_CLK_ENABLE()
-#define RADIO_SPI_MOSI_GPIO_CLK_ENABLE() BUS_SPI1_MOSI_GPIO_CLK_ENABLE()
-#define RADIO_SPI_MISO_GPIO_CLK_ENABLE() BUS_SPI1_MISO_GPIO_CLK_ENABLE()
+#define RADIO_SPI_SCK_GPIO_PIN           BUS_SPI2_SCK_GPIO_PIN
+#define RADIO_SPI_MISO_GPIO_PIN          BUS_SPI2_MISO_GPIO_PIN
+#define RADIO_SPI_MOSI_GPIO_PIN          BUS_SPI2_MOSI_GPIO_PIN
+#define RADIO_SPI_SCK_GPIO_PORT          BUS_SPI2_SCK_GPIO_PORT
+#define RADIO_SPI_MISO_GPIO_PORT         BUS_SPI2_MISO_GPIO_PORT
+#define RADIO_SPI_MOSI_GPIO_PORT         BUS_SPI2_MOSI_GPIO_PORT
+#define RADIO_SPI_SCK_GPIO_AF            BUS_SPI2_SCK_GPIO_AF
+#define RADIO_SPI_MOSI_GPIO_AF           BUS_SPI2_MOSI_GPIO_AF
+#define RADIO_SPI_MISO_GPIO_AF           BUS_SPI2_MISO_GPIO_AF
+#define RADIO_SPI_SCK_GPIO_CLK_ENABLE()  BUS_SPI2_SCK_GPIO_CLK_ENABLE()
+#define RADIO_SPI_MOSI_GPIO_CLK_ENABLE() BUS_SPI2_MOSI_GPIO_CLK_ENABLE()
+#define RADIO_SPI_MISO_GPIO_CLK_ENABLE() BUS_SPI2_MISO_GPIO_CLK_ENABLE()
 
 #if defined (USE_STM32L0XX_NUCLEO) || defined (USE_B_L072Z_LRWAN1)
-#define RADIO_SPI_AF                              GPIO_AF0_SPI1
+#define RADIO_SPI_AF                              GPIO_AF0_SPI2
 #elif defined (USE_STM32L1XX_NUCLEO) || defined (USE_STM32L4XX_NUCLEO)
-#define RADIO_SPI_AF                              GPIO_AF5_SPI1
+#define RADIO_SPI_AF                              GPIO_AF5_SPI2
 #endif
 
 #define RADIO_NSS_CLK_ENABLE()      __HAL_RCC_GPIOA_CLK_ENABLE()
 #define RADIO_NSS_PORT              GPIOA
-#define RADIO_NSS_PIN               GPIO_PIN_8
+#define RADIO_NSS_PIN               GPIO_PIN_6
 
 /*  Radio Pins */
 
 #define RADIO_RESET_CLK_ENABLE()    __HAL_RCC_GPIOA_CLK_ENABLE()
 #define RADIO_RESET_PORT            GPIOA
-#define RADIO_RESET_PIN             GPIO_PIN_0
+#define RADIO_RESET_PIN             GPIO_PIN_3
 
-#define RADIO_BUSY_CLK_ENABLE()                  __HAL_RCC_GPIOB_CLK_ENABLE()
-#define RADIO_BUSY_PORT                           GPIOB
-#define RADIO_BUSY_PIN                            GPIO_PIN_3
+#define RADIO_BUSY_CLK_ENABLE()                  __HAL_RCC_GPIOA_CLK_ENABLE()
+#define RADIO_BUSY_PORT                           GPIOA
+#define RADIO_BUSY_PIN                            GPIO_PIN_7
 
 #define RADIO_DIOn                               1U
 
 #define RADIO_DIO_1_IT_PRIO                        0
-#define RADIO_DIO_1_PORT                  GPIOB
-#define RADIO_DIO_1_PIN                   GPIO_PIN_4
-#define RADIO_DIO_1_GPIO_CLK_ENABLE()     __HAL_RCC_GPIOB_CLK_ENABLE()
-#define RADIO_DIO_1_EXTI_LINE             EXTI_LINE_4
-#define RADIO_DIO_1_IRQn                  EXTI4_IRQn
+#define RADIO_DIO_1_PORT                  GPIOC
+#define RADIO_DIO_1_PIN                   GPIO_PIN_13
+#define RADIO_DIO_1_GPIO_CLK_ENABLE()     __HAL_RCC_GPIOC_CLK_ENABLE()
+#define RADIO_DIO_1_EXTI_LINE             EXTI_LINE_13
+#define RADIO_DIO_1_IRQn                  EXTI15_10_IRQn
 #define H_EXTI_4        hRADIO_DIO_exti[0]
 
 #define RADIO_ANT_SWITCH_POWER_PORT               GPIOA

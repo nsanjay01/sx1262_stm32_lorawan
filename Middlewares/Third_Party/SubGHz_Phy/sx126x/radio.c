@@ -657,7 +657,7 @@ uint32_t RadioRandom( void )
     SX126xSetDioIrqParams( IRQ_RADIO_NONE, IRQ_RADIO_NONE, IRQ_RADIO_NONE, IRQ_RADIO_NONE );
 
     rnd = SX126xGetRandom( );
-    Sx_Board_SetLedRx(false);
+    // Sx_Board_SetLedRx(false);
 
     return rnd;
 }
