@@ -107,6 +107,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_hal.h"
 #include "radio.h"
+#include "sys_app.h"
 
 /** @addtogroup STM32F4xx_HAL_Driver
   * @{
@@ -512,6 +513,7 @@ __weak void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   // IrqFired = true;  // set the flag
   /* NOTE: This function Should not be modified, when the callback is needed,
            the HAL_GPIO_EXTI_Callback could be implemented in the user file
+           
    */
 }
 

@@ -43,6 +43,8 @@
 #include "RegionUS915.h"
 #include "RegionBaseUS.h"
 #include "lorawan_conf.h"  /* REGION_* */
+#include "sys_app.h"      /* APP_LOG */
+#include "main.h"
 
 // Definitions
 #define CHANNELS_MASK_SIZE              6
@@ -552,6 +554,9 @@ void RegionUS915ComputeRxWindowParameters( int8_t datarate, uint8_t minRxSymbols
     // Get the datarate, perform a boundary check
     rxConfigParams->Datarate = MIN( datarate, US915_RX_MAX_DATARATE );
     rxConfigParams->Bandwidth = RegionCommonGetBandwidth( rxConfigParams->Datarate, BandwidthsUS915 );
+    // APP_LOG(TS_ON, VLEVEL_H, "RX Params: Input DR=%d, Final DR=%d, BW=%d, BandwidthsUS915[%d]=%d\n", 
+    //         datarate, rxConfigParams->Datarate, rxConfigParams->Bandwidth, 
+    //         rxConfigParams->Datarate, BandwidthsUS915[rxConfigParams->Datarate]);
 
     tSymbolInUs = RegionCommonComputeSymbolTimeLoRa( DataratesUS915[rxConfigParams->Datarate], BandwidthsUS915[rxConfigParams->Datarate] );
 
@@ -576,12 +581,15 @@ bool RegionUS915RxConfig( RxConfigParams_t* rxConfig, int8_t* datarate )
     {
         // Apply window 1 frequency
         frequency = US915_FIRST_RX1_CHANNEL + ( rxConfig->Channel % 8 ) * US915_STEPWIDTH_RX1_CHANNEL;
+        // APP_LOG(TS_ON, VLEVEL_H, "Opening RX1 window at: %d ms, freq=%d\n", HAL_GetTick(), frequency);
     }
 
     // Read the physical datarate from the datarates table
     phyDr = DataratesUS915[dr];
 
     Radio.SetChannel( frequency );
+
+    // APP_LOG(TS_ON, VLEVEL_H, " 2 Opening RX1 window at: %d ms, freq=%d\n", HAL_GetTick(), frequency);
 
     // Radio configuration
     Radio.SetRxConfig( MODEM_LORA, rxConfig->Bandwidth, phyDr, 1, 0, 8, rxConfig->WindowTimeout, false, 0, false, 0, 0, true, rxConfig->RxContinuous );

@@ -687,7 +687,9 @@ static void OnRadioTxDone( void )
     {
         MacCtx.MacCallbacks->MacProcessNotify( );
     }
+    
     MW_LOG(TS_ON, VLEVEL_M, "MAC txDone\r\n" );
+    
 }
 
 static void OnRadioRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr )
@@ -761,11 +763,16 @@ static void ProcessRadioTxDone( void )
     {
         Radio.Sleep( );
     }
+
+    MW_LOG(TS_ON, VLEVEL_H, "RxWindow1Delay: %d ms\n", MacCtx.RxWindow1Delay);
+    MW_LOG(TS_ON, VLEVEL_H, "RxWindow2Delay: %d ms\n", MacCtx.RxWindow2Delay);
     // Setup timers
     TimerSetValue( &MacCtx.RxWindowTimer1, MacCtx.RxWindow1Delay );
     TimerStart( &MacCtx.RxWindowTimer1 );
+    MW_LOG(TS_ON, VLEVEL_H, "Started RxWindow1 timer\n");
     TimerSetValue( &MacCtx.RxWindowTimer2, MacCtx.RxWindow2Delay );
     TimerStart( &MacCtx.RxWindowTimer2 );
+    MW_LOG(TS_ON, VLEVEL_H, "Started RxWindow2 timer\n");
 
     if( ( Nvm.MacGroup2.DeviceClass == CLASS_C ) || ( MacCtx.NodeAckRequested == true ) )
     {
@@ -1705,6 +1712,8 @@ static void OnRxWindow1TimerEvent( void* context )
     MacCtx.RxWindow1Config.RxSlot = RX_SLOT_WIN_1;
 
     RxWindowSetup( &MacCtx.RxWindowTimer1, &MacCtx.RxWindow1Config );
+  
+
 }
 
 static void OnRxWindow2TimerEvent( void* context )
@@ -1723,6 +1732,7 @@ static void OnRxWindow2TimerEvent( void* context )
     MacCtx.RxWindow2Config.RxSlot = RX_SLOT_WIN_2;
 
     RxWindowSetup( &MacCtx.RxWindowTimer2, &MacCtx.RxWindow2Config );
+    
 }
 
 static void OnAckTimeoutTimerEvent( void* context )

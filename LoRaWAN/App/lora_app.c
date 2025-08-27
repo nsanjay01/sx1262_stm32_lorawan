@@ -38,6 +38,7 @@
 #include "sys_conf.h"
 #include "CayenneLpp.h"
 #include "sys_sensors.h"
+#include "stm32f4xx_hal_gpio.h"
 
 /* USER CODE BEGIN Includes */
 
@@ -294,12 +295,14 @@ void LoRaWAN_Init(void)
 /* USER CODE BEGIN PB_Callbacks */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
+
   switch (GPIO_Pin)
   {
-    case  USER_BUTTON_PIN:
-      UTIL_SEQ_SetTask((1 << CFG_SEQ_Task_LoRaSendOnTxTimerOrButtonEvent), CFG_SEQ_Prio_0);
-      break;
+    // case  USER_BUTTON_PIN:
+    //   UTIL_SEQ_SetTask((1 << CFG_SEQ_Task_LoRaSendOnTxTimerOrButtonEvent), CFG_SEQ_Prio_0);
+    //   break;
     default:
+      APP_LOG(TS_ON, VLEVEL_H, "In lora_app.c: HAL_GPIO_EXTI_Callback unknown GPIO_Pin 12345 %d\n", GPIO_Pin);
       break;
   }
 }

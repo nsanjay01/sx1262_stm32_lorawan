@@ -22,6 +22,9 @@
 #include "stm32f4xx_it.h"
 #include "radio.h"
 #include "timer.h"
+#include "sys_app.h"
+#include "sx1262dvk1das_conf.h"
+#include "sx1262dvk1das.h"
 // #include "timer.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -78,7 +81,7 @@ void NMI_Handler(void)
 
   /* USER CODE END NonMaskableInt_IRQn 0 */
   /* USER CODE BEGIN NonMaskableInt_IRQn 1 */
-  printf("In NMI_Handler function\n");
+  // printf("In NMI_Handler function\n");
    while (1)
   {
   }
@@ -307,6 +310,7 @@ void EXTI17_IRQHandler(void)
   */
 void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc)
 {
+    APP_LOG(TS_ON, VLEVEL_H, "RTC Alarm callback fired!\n");
   UTIL_TIMER_IRQ_Handler(); // 2. Notify the LoRaWAN timer service
 }
 
@@ -316,8 +320,11 @@ void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc)
 void EXTI15_10_IRQHandler(void)
 {
     /* Call HAL EXTI handler with the pin that triggered it */
-    HAL_GPIO_EXTI_IRQHandler(DIO1); // B1_Pin is GPIO_PIN_13
+    // HAL_GPIO_EXTI_IRQHandler(DIO1); // B1_Pin is GPIO_PIN_13
+    // APP_LOG(TS_ON, VLEVEL_H, "EXTI15_10_IRQHandler triggered by DIO1\n");
+         
   // printf("EXTI15_10_IRQHandler function\n");
+  HAL_EXTI_IRQHandler(&H_EXTI_4);  // H_EXTI_4 should be configured for line 
 }
 
 // void TIM2_IRQHandler(void)

@@ -28,6 +28,8 @@
 #include "utilities_def.h"
 #include "stm32f4xx_ll_rtc.h"
 
+#define RTIF_DEBUG 1
+
 /* USER CODE BEGIN Includes */
 
 /* USER CODE END Includes */
@@ -234,6 +236,15 @@ UTIL_TIMER_Status_t RTC_IF_Init(void)
     }
 
     MX_RTC_Init();
+    if (__HAL_RCC_GET_FLAG(RCC_FLAG_LSERDY) == SET)
+{
+    APP_LOG(TS_ON, VLEVEL_H, "LSE crystal running OK\n");
+}
+else 
+{
+    APP_LOG(TS_ON, VLEVEL_H, "ERROR: LSE not ready!\n");
+    // Try switching to LSI temporarily
+}
 
     /** Configure the Alarm A */
     HAL_RTC_DeactivateAlarm(&hrtc, RTC_ALARM_A);
