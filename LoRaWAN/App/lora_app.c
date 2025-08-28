@@ -373,6 +373,21 @@ static void OnRxData(LmHandlerAppData_t *appData, LmHandlerRxParams_t *params)
             LED_On(LED_RED1);
           }
         }
+        else
+        {
+          APP_LOG(TS_ON, VLEVEL_H, "Port: %d\n", appData->Port);
+          APP_LOG(TS_ON, VLEVEL_H, "BufferSize: %d\n", appData->BufferSize);
+          APP_LOG(TS_ON, VLEVEL_H, "Buffer: ");
+    
+          if (appData->Buffer != NULL && appData->BufferSize > 0)
+           {
+              for (uint8_t i = 0; i < appData->BufferSize; i++)
+              {
+                APP_LOG(TS_ON, VLEVEL_H, "%02X ", appData->Buffer[i]);
+              }
+           }
+          APP_LOG(TS_ON, VLEVEL_H, "\n");
+        }
         break;
 
       default:
@@ -405,9 +420,9 @@ static void SendTxData(void)
 #if defined (SENSOR_ENABLED) && (SENSOR_ENABLED == 1)
   temperature = (int16_t) sensor_data.temperature;
 #else
-  temperature = (SYS_GetTemperatureLevel() >> 8);
+  temperature =   26; //(SYS_GetTemperatureLevel() >> 8);
 #endif  /* SENSOR_ENABLED */
-  pressure    = (uint16_t)(sensor_data.pressure * 100 / 10);      /* in hPa / 10 */
+  pressure    =  120 ; //(uint16_t)(sensor_data.pressure * 100 / 10);      /* in hPa / 10 */
 
   AppData.Port = LORAWAN_USER_APP_PORT;
 
@@ -427,7 +442,7 @@ static void SendTxData(void)
   CayenneLppCopy(AppData.Buffer);
   AppData.BufferSize = CayenneLppGetSize();
 #else  /* not CAYENNE_LPP */
-  humidity    = (uint16_t)(sensor_data.humidity * 10);            /* in %*10     */
+  humidity    =  26; // (uint16_t)(sensor_data.humidity * 10);            /* in %*10     */
 
   AppData.Buffer[i++] = AppLedStateOn;
   AppData.Buffer[i++] = (uint8_t)((pressure >> 8) & 0xFF);
@@ -446,10 +461,10 @@ static void SendTxData(void)
   }
   else
   {
-    latitude = sensor_data.latitude;
-    longitude = sensor_data.longitude;
+    latitude =  52;//sensor_data.latitude;
+    longitude =  64;// sensor_data.longitude;
 
-    AppData.Buffer[i++] = GetBatteryLevel();        /* 1 (very low) to 254 (fully charged) */
+    AppData.Buffer[i++] = 254 ; //GetBatteryLevel();        /* 1 (very low) to 254 (fully charged) */
     AppData.Buffer[i++] = (uint8_t)((latitude >> 16) & 0xFF);
     AppData.Buffer[i++] = (uint8_t)((latitude >> 8) & 0xFF);
     AppData.Buffer[i++] = (uint8_t)(latitude & 0xFF);

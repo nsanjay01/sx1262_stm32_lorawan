@@ -31,7 +31,7 @@
 #include "utilities_def.h"
 #include "sys_debug.h"
 #include "rtc_if.h"
-// #include "sys_sensors.h"
+#include "sys_sensors.h"
 
 /* USER CODE BEGIN Includes */
 
@@ -127,12 +127,12 @@ void SystemApp_Init(void)
   Sx_Board_IoInit();
 
   /*Initialize the Sensors */
-  // EnvSensors_Init();
+  EnvSensors_Init();
 
   /*Init low power manager*/
-  // UTIL_LPM_Init();
+  UTIL_LPM_Init();
   /* Disable Stand-by mode */
-  // UTIL_LPM_SetOffMode((1 << CFG_LPM_APPLI_Id), UTIL_LPM_DISABLE);
+  UTIL_LPM_SetOffMode((1 << CFG_LPM_APPLI_Id), UTIL_LPM_DISABLE);
 
 #if defined (LOW_POWER_DISABLE) && (LOW_POWER_DISABLE == 1)
   /* Disable Stop Mode */
