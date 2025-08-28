@@ -301,16 +301,17 @@ void USART2_IRQHandler(void)
   HAL_UART_IRQHandler(&huart2);
 }
 
-void EXTI17_IRQHandler(void)
+void RTC_Alarm_IRQHandler(void)
 {
   HAL_RTC_AlarmIRQHandler(&hrtc); // 1. Call the generic HAL handler for the RTC alarm
+  // APP_LOG(TS_ON, VLEVEL_H, "EXTI17_IRQHandler func: RTC Alarm callback fired!\n");
 }
 /**
   * @brief  Alarm A callback, which is called by the HAL handler above.
   */
 void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc)
 {
-    APP_LOG(TS_ON, VLEVEL_H, "RTC Alarm callback fired!\n");
+    // APP_LOG(TS_ON, VLEVEL_H, "RTC Alarm callback fired!\n");
   UTIL_TIMER_IRQ_Handler(); // 2. Notify the LoRaWAN timer service
 }
 

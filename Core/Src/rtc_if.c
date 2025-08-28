@@ -293,14 +293,14 @@ uint32_t RTC_IF_SetTimerContext(void)
 {
   /*store time context*/
   RtcTimerContext.Rtc_Time = RTC_GetCalendarValue(&RtcTimerContext.RTC_Calndr_Date, &RtcTimerContext.RTC_Calndr_Time);
-  RTC_IF_DBG_PRINTF("RTC_IF_SetTimerContext=%d\n\r", RtcTimerContext.Rtc_Time);
+  // RTC_IF_DBG_PRINTF("RTC_IF_SetTimerContext=%d\n\r", RtcTimerContext.Rtc_Time);
   /*return time context*/
   return (uint32_t) RtcTimerContext.Rtc_Time;
 }
 
 uint32_t RTC_IF_GetTimerContext(void)
 {
-  RTC_IF_DBG_PRINTF("RTC_IF_GetTimerContext=%d\n\r", RtcTimerContext.Rtc_Time);
+  // RTC_IF_DBG_PRINTF("RTC_IF_GetTimerContext=%d\n\r", RtcTimerContext.Rtc_Time);
   /*return time context*/
   return (uint32_t) RtcTimerContext.Rtc_Time;
 }
