@@ -112,3 +112,4 @@ Applications, SubGHz_Phy, LoRaWAN, End_Node
 *Note: The application is designed specifically for the STMicroelectronics NUCLEO-F446RE device.*
 
 
+
