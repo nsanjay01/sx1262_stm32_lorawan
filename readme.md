@@ -84,15 +84,6 @@ Applications, SubGHz_Phy, LoRaWAN, End_Node
 - Configure software parameters via configuration files like `sys_conf.h`, `radio_conf.h`, `lorawan_conf.h`, `lora_app.h`, `se-identity.h`, `mw_log_conf.h`, `radio_board_if.h`, and `main.h`.
 - Make sure the region and class settings in `lora_app.h` are compatible with those in `lorawan_conf.h`.
 
-#### Setup Diagram
-  -Set Up:
-             --------------------------  V    V  --------------------------
-             |      LoRa Object       |  |    |  |      LoRa Network      |
-             |                        |  |    |  |                        |
-   ComPort<--|                        |--|    |--|                        |-->Web Server
-             |                        |          |                        |
-             --------------------------          --------------------------
-
 
 ## How to Use
 
