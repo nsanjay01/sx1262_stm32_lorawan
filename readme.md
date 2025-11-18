@@ -86,7 +86,6 @@ Applications, SubGHz_Phy, LoRaWAN, End_Node
 
 #### Setup Diagram
   -Set Up:
-
              --------------------------  V    V  --------------------------
              |      LoRa Object       |  |    |  |      LoRa Network      |
              |                        |  |    |  |                        |
@@ -110,6 +109,7 @@ Applications, SubGHz_Phy, LoRaWAN, End_Node
 ---
 
 *Note: The application is designed specifically for the STMicroelectronics NUCLEO-F446RE device.*
+
 
 
 
