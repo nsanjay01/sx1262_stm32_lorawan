@@ -7,12 +7,13 @@
   ******************************************************************************
   * @attention
   *
-  * Copyright (c) 2025 STMicroelectronics.
-  * All rights reserved.
+  * <h2><center>&copy; Copyright (c) 2020 STMicroelectronics.
+  * All rights reserved.</center></h2>
   *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
+  * This software component is licensed by ST under Ultimate Liberty license
+  * SLA0044, the "License"; You may not use this file except in compliance with
+  * the License. You may obtain a copy of the License at:
+  *                             www.st.com/SLA0044
   *
   ******************************************************************************
   */
@@ -28,22 +29,6 @@ extern "C" {
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_hal.h"
-#include "sx126x.h"
-#include "sx126x_hal.h"
-#include <stdio.h>
-#include "debug_utility.h"
-#include <string.h>
-#include "utilities.h"
-#include "RegionCommon.h"    /*Implement timer.h and systime.h in LoRaMac.h file in current stm32 files*/
-#include "Commissioning.h"
-#include "LmHandler.h"        /*Implement timer.h and systime.h in LoRaMac.h file in current stm32 files*/
-#include "LmhpCompliance.h"     /*Implement timer.h and systime.h in LoRaMac.h file in current stm32 files*/
-#include "CayenneLpp.h"
-#include "LmHandlerMsgDisplay.h"
-// #include "radio.h"
-#include "timer.h"
-#include "systime.h"
-#include "radio_board.h"
 
 
 /* Private includes ----------------------------------------------------------*/
@@ -53,9 +38,7 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
- // External TIM2 and RTC handles from CubeMX-generated main.c
- extern TIM_HandleTypeDef htim2;
- extern RTC_HandleTypeDef hrtc;
+
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
@@ -74,6 +57,45 @@ void Error_Handler(void);
 /* USER CODE BEGIN EFP */
 
 /* USER CODE END EFP */
+
+/* Private defines -----------------------------------------------------------*/
+#define RTC_N_PREDIV_S 10
+#define RTC_PREDIV_S ((1<<RTC_N_PREDIV_S)-1)
+#define RTC_PREDIV_A ((1<<(15-RTC_N_PREDIV_S))-1)
+#define USART_BAUDRATE 115200
+
+// /* Pin mapping */
+
+// /* Definition for UARTx clock resources */
+// #define DMAx_CLK_ENABLE()                __HAL_RCC_DMA1_CLK_ENABLE()
+// #define DMAMUX_CLK_ENABLE()              __HAL_RCC_DMAMUX1_CLK_ENABLE()
+
+// /* Definition for USARTx's DMA Request */
+// #define USARTx_TX_DMA_REQUEST             DMA_REQUEST_2
+// /* Definition for USARTx's DMA */
+// #define USARTx_TX_DMA_CHANNEL             DMA1_Channel7
+
+// /* Definition for USARTx's NVIC */
+// #define USARTx_DMA_TX_IRQn                DMA1_Channel7_IRQn
+// #define USARTx_DMA_TX_IRQHandler          DMA1_Channel7_IRQHandler
+
+// /* Definition for USARTx's NVIC */
+// #define USARTx_IRQn                      USART2_IRQn
+// #define USARTx_Priority 0
+// #define USARTx_DMA_Priority 0
+
+
+// #define USARTx_RX_Pin GPIO_PIN_3
+// #define USARTx_RX_GPIO_Port GPIOA
+// #define USARTx_TX_Pin GPIO_PIN_2
+// #define USARTx_TX_GPIO_Port GPIOA
+
+// #define USARTx_RX_GPIO_CLK_ENABLE()      __HAL_RCC_GPIOA_CLK_ENABLE()
+// #define USARTx_TX_GPIO_CLK_ENABLE()      __HAL_RCC_GPIOA_CLK_ENABLE()
+
+// #define USARTx_TX_AF                     GPIO_AF7_USART2
+// #define USARTx_RX_AF                     GPIO_AF7_USART2
+
 
 /* Private defines -----------------------------------------------------------*/
 #define DIO1 GPIO_PIN_13
@@ -96,90 +118,6 @@ void Error_Handler(void);
 #define RESET_PIN_PORT GPIOA
 
 
-
-
-
-#ifndef ACTIVE_REGION
-
-#warning "No active region defined, LORAMAC_REGION_EU868 will be used as default."
-
-#define ACTIVE_REGION LORAMAC_REGION_US915
-
-#endif
-
-/*!
- * LoRaWAN default end-device class
- */
-#ifndef LORAWAN_DEFAULT_CLASS
-#define LORAWAN_DEFAULT_CLASS                       CLASS_A
-#endif
-
-
-/*!
- * Defines the application data transmission duty cycle. 5s, value in [ms].
- */
-#define APP_TX_DUTYCYCLE                            5000
-
-
-/*!
- * Defines a random delay for application data transmission duty cycle. 1s,
- * value in [ms].
- */
-#define APP_TX_DUTYCYCLE_RND                        1000
-
-/*!
- * LoRaWAN Adaptive Data Rate
- *
- * \remark Please note that when ADR is enabled the end-device should be static
- */
-#define LORAWAN_ADR_STATE                           LORAMAC_HANDLER_ADR_ON
-
-
-/*!
- * Default datarate
- *
- * \remark Please note that LORAWAN_DEFAULT_DATARATE is used only when ADR is disabled 
- */
-#define LORAWAN_DEFAULT_DATARATE                    DR_0
-
-
-/*!
- * LoRaWAN confirmed messages
- */
-#define LORAWAN_DEFAULT_CONFIRMED_MSG_STATE         LORAMAC_HANDLER_CONFIRMED_MSG
-
-
-
-/*!
- * User application data buffer size
- */
-#define LORAWAN_APP_DATA_BUFFER_MAX_SIZE            242
-
-/*!
- * LoRaWAN ETSI duty cycle control enable/disable
- *
- * \remark Please note that ETSI mandates duty cycled transmissions. Use only for test purposes
- */
-#define LORAWAN_DUTYCYCLE_ON                        true
-
-/*!
- * LoRaWAN application port
- * @remark The allowed port range is from 1 up to 223. Other values are reserved.
- */
-#define LORAWAN_APP_PORT                            2
-
-/*!
- *
- */
-typedef enum
-{
-    LORAMAC_HANDLER_TX_ON_TIMER,
-    LORAMAC_HANDLER_TX_ON_EVENT,
-}LmHandlerTxEvents_t;
-
-
-
-
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
@@ -189,3 +127,5 @@ typedef enum
 #endif
 
 #endif /* __MAIN_H */
+
+/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
