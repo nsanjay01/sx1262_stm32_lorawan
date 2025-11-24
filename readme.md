@@ -29,8 +29,8 @@ Applications, SubGHz_Phy, LoRaWAN, End_Node
 - `platform.h` — General hardware instances configuration
 - `rtc.h` — Prototypes for rtc.c
 - `rtc_if.h` — RTC interface configuration
-- `stm32l4xx_hal_conf.h` — HAL configuration
-- `stm32l4xx_it.h` — Interrupt handlers
+- `stm32f4xx_hal_conf.h` — HAL configuration
+- `stm32f4xx_it.h` — Interrupt handlers
 - `stm32_lpm_if.h` — Low Power Manager interface config
 - `sys_app.h` — Prototypes for system application
 - `sys_conf.h` — Application configuration (debug, trace, low power, sensors)
@@ -56,8 +56,6 @@ Applications, SubGHz_Phy, LoRaWAN, End_Node
 - `iks01a2_conf.h` & `iks01a3_conf.h` — MEMS component bus interface definitions
 - `lorawan_conf.h` — LoRaWAN middleware configuration
 - `mw_log_conf.h` — Trace configuration (enable/disable)
-- `nucleo_l476rg_bus.h` — BSP BUS IO driver header
-- `nucleo_l476rg_errno.h` — Error codes
 - `radio_board_if.h` — Radio interface configuration
 - `radio_conf.h` — Radio configuration header
 - Various `..._conf.h` files for pin mappings and shield configuration
@@ -100,6 +98,7 @@ Applications, SubGHz_Phy, LoRaWAN, End_Node
 ---
 
 *Note: The application is designed specifically for the STMicroelectronics NUCLEO-F446RE device.*
+
 
 
 
