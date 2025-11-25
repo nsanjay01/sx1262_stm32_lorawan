@@ -101,5 +101,14 @@ Applications, SubGHz_Phy, LoRaWAN, End_Node
 
 
 
+License & Credits
+LoRaWAN Stack: Based on the Semtech LoRaMac-node (BSD-3-Clause).
+Hardware Abstraction: Uses STMicroelectronics I-CUBE-LRWAN drivers (BSD-3-Clause / Ultimate Liberty License).
+Note: This project is intended for use with STM32 microcontrollers in compliance with STMicroelectronics licensing terms.
+
+
+
+
+
 
 
